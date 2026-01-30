@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            min-width: 200px;
+            overflow: hidden;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .controls-header:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .controls-header h2 {
+            color: #ccc;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin: 0;
+        }
+
+        .controls-header .arrow {
+            color: #666;
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+        }
+
+        .controls.collapsed .arrow {
+            transform: rotate(180deg);
+        }
+
+        .controls-body {
+            padding: 0 20px 20px;
+            max-height: 400px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .controls.collapsed .controls-body {
+            max-height: 0;
+            padding: 0 20px;
+        }
+
+        .control-group {
+            margin-bottom: 14px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-group label {
+            display: block;
+            color: #8a8aa0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            color: #ddd;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        .control-group select:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .control-group select option {
+            background: #1a1a2e;
+            color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls" id="controls">
+        <div class="controls-header" onclick="document.getElementById('controls').classList.toggle('collapsed')">
+            <h2>Controls</h2>
+            <span class="arrow">&#9650;</span>
+        </div>
+        <div class="controls-body">
+            <div class="control-group">
+                <label>Connection Distance</label>
+                <select id="connectionDist">
+                    <option value="80">Short</option>
+                    <option value="130" selected>Medium</option>
+                    <option value="200">Long</option>
+                    <option value="300">Very Long</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Star Count</label>
+                <select id="starCount">
+                    <option value="80">Few</option>
+                    <option value="150" selected>Medium</option>
+                    <option value="300">Many</option>
+                    <option value="500">Swarm</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Star Speed</label>
+                <select id="starSpeed">
+                    <option value="0.3">Slow</option>
+                    <option value="0.8" selected>Medium</option>
+                    <option value="1.8">Fast</option>
+                    <option value="3.5">Hyper</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Star Size</label>
+                <select id="starSize">
+                    <option value="1">Small</option>
+                    <option value="2" selected>Medium</option>
+                    <option value="3.5">Large</option>
+                    <option value="5">Huge</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Music</label>
+                <select id="musicToggle">
+                    <option value="on" selected>On</option>
+                    <option value="off">Off</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="startOverlay" style="
+        position:fixed; inset:0; z-index:100;
+        display:flex; justify-content:center; align-items:center;
+        background:rgba(0,0,0,0.7); cursor:pointer;
+    ">
+        <span style="color:#8a8aa0; font-family:system-ui; font-size:1.2rem; letter-spacing:0.1em; text-transform:uppercase;">
+            Click anywhere to start
+        </span>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const distSelect = document.getElementById('connectionDist');
+        const countSelect = document.getElementById('starCount');
+        const speedSelect = document.getElementById('starSpeed');
+        const sizeSelect = document.getElementById('starSize');
+        const musicToggle = document.getElementById('musicToggle');
+
+        // --- Audio setup ---
+        let audioCtx, masterGain;
+        // Major pentatonic in higher octaves for a brighter feel
+        const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
+        let activeConnections = 0;
+        let lastChimeTime = 0;
+        let lastBassTime = 0;
+        let beatPhase = 0;
+        const oscillators = [];
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.18;
+            masterGain.connect(audioCtx.destination);
+
+            // Bright chord pad using square + sine layering
+            const chordNotes = [261.63, 329.63, 392.00, 523.25];
+            chordNotes.forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.value = 0.03;
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                oscillators.push({ osc, gain });
+
+                // Shimmer layer
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'square';
+                osc2.frequency.value = freq * 2;
+                gain2.gain.value = 0.008;
+                osc2.connect(gain2);
+                gain2.connect(masterGain);
+                osc2.start();
+                oscillators.push({ osc: osc2, gain: gain2 });
+            });
+        }
+
+        function playChime(freq, duration) {
+            if (!audioCtx || musicToggle.value === 'off') return;
+            const dur = duration || 0.6;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+
+            // Bright harmonic overtone
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.value = freq * 2;
+            gain2.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur * 0.7);
+            osc2.connect(gain2);
+            gain2.connect(masterGain);
+            osc2.start();
+            osc2.stop(audioCtx.currentTime + dur);
+        }
+
+        function playBassHit(freq) {
+            if (!audioCtx || musicToggle.value === 'off') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function updateAudio() {
+            if (!audioCtx || musicToggle.value === 'off') {
+                if (masterGain) masterGain.gain.value = 0;
+                return;
+            }
+            masterGain.gain.value = 0.18;
+
+            const density = Math.min(activeConnections / 80, 1);
+            const now = performance.now();
+
+            // Energize the pad based on connections
+            oscillators.forEach((o, i) => {
+                const boost = 1 + density * 0.4;
+                o.osc.frequency.setTargetAtTime(o.osc.frequency.value * (0.999 + density * 0.002), audioCtx.currentTime, 1);
+                o.gain.gain.setTargetAtTime((i % 2 === 0 ? 0.03 : 0.008) + density * 0.015, audioCtx.currentTime, 0.3);
+            });
+
+            // Rhythmic bass pulse — faster with more connections
+            const bassInterval = 600 - density * 300;
+            if (now - lastBassTime > bassInterval) {
+                const bassNotes = [130.81, 146.83, 164.81, 196.00];
+                playBassHit(bassNotes[Math.floor(Math.random() * bassNotes.length)]);
+                lastBassTime = now;
+            }
+
+            // Melodic chimes — more frequent and varied with density
+            const chimeInterval = 300 - density * 150;
+            if (now - lastChimeTime > chimeInterval && activeConnections > 5) {
+                const noteIdx = Math.floor(Math.random() * notes.length);
+                const octaveShift = Math.random() > 0.5 ? 2 : 1;
+                playChime(notes[noteIdx] * octaveShift, 0.4 + Math.random() * 0.5);
+                lastChimeTime = now;
+
+                // Occasional harmony double-hit
+                if (density > 0.4 && Math.random() > 0.6) {
+                    const harmIdx = (noteIdx + 2) % notes.length;
+                    setTimeout(() => playChime(notes[harmIdx] * octaveShift, 0.3), 80);
+                }
+            }
+        }
+
+        document.getElementById('startOverlay').addEventListener('click', function() {
+            this.style.display = 'none';
+            initAudio();
+        });
+
+        let width, height;
+        let stars = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function createStar() {
+            const speed = parseFloat(speedSelect.value);
+            const angle = Math.random() * Math.PI * 2;
+            return {
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                hue: 200 + Math.random() * 40,
+                baseSize: 0.5 + Math.random() * 1.5
+            };
+        }
+
+        function syncStars() {
+            const target = parseInt(countSelect.value);
+            while (stars.length < target) stars.push(createStar());
+            while (stars.length > target) stars.pop();
+        }
+
+        countSelect.addEventListener('change', syncStars);
+        syncStars();
+
+        function drawStar(cx, cy, points, outerR, innerR) {
+            ctx.beginPath();
+            for (let i = 0; i < points * 2; i++) {
+                const r = i % 2 === 0 ? outerR : innerR;
+                const angle = (Math.PI / points) * i - Math.PI / 2;
+                ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            const maxDist = parseFloat(distSelect.value);
+            const speed = parseFloat(speedSelect.value);
+            const sizeMul = parseFloat(sizeSelect.value);
+
+            // Update positions
+            for (const star of stars) {
+                star.x += star.vx * (speed / 0.8);
+                star.y += star.vy * (speed / 0.8);
+
+                if (star.x < 0) star.x += width;
+                if (star.x > width) star.x -= width;
+                if (star.y < 0) star.y += height;
+                if (star.y > height) star.y -= height;
+            }
+
+            // Draw connections
+            activeConnections = 0;
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i + 1; j < stars.length; j++) {
+                    const dx = stars[i].x - stars[j].x;
+                    const dy = stars[i].y - stars[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < maxDist) {
+                        activeConnections++;
+                        const alpha = 1 - dist / maxDist;
+                        ctx.beginPath();
+                        ctx.moveTo(stars[i].x, stars[i].y);
+                        ctx.lineTo(stars[j].x, stars[j].y);
+                        ctx.strokeStyle = `rgba(100, 160, 255, ${alpha * 0.35})`;
+                        ctx.lineWidth = alpha * 1.2;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw stars with aura
+            for (const star of stars) {
+                const size = star.baseSize * sizeMul;
+
+                // Aura glow layers
+                const glowRadius = size * 6;
+                const gradient = ctx.createRadialGradient(star.x, star.y, size * 0.5, star.x, star.y, glowRadius);
+                gradient.addColorStop(0, `hsla(${star.hue}, 80%, 70%, 0.25)`);
+                gradient.addColorStop(0.4, `hsla(${star.hue}, 70%, 50%, 0.08)`);
+                gradient.addColorStop(1, `hsla(${star.hue}, 60%, 40%, 0)`);
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, glowRadius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Star shape
+                ctx.fillStyle = `hsl(${star.hue}, 70%, 70%)`;
+                drawStar(star.x, star.y, 5, size, size * 0.4);
+            }
+
+            updateAudio();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
