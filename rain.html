@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World - Rain</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            color: white;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .rain-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .drop {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0.7;
+            border-radius: 1px;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="rain-container" id="rainContainer"></div>
+    
+    <div class="container">
+        <h1>Hello, World!</h1>
+    </div>
+
+    <script>
+        function createRain() {
+            const rainContainer = document.getElementById('rainContainer');
+            const numberOfDrops = 100;
+
+            for (let i = 0; i < numberOfDrops; i++) {
+                const drop = document.createElement('div');
+                drop.classList.add('drop');
+                
+                const randomLeft = Math.random() * 100;
+                const randomDelay = Math.random() * 0.5;
+                const randomDuration = 0.5 + Math.random() * 0.5;
+                
+                drop.style.left = randomLeft + '%';
+                drop.style.animationDelay = randomDelay + 's';
+                drop.style.animationDuration = randomDuration + 's';
+                
+                rainContainer.appendChild(drop);
+            }
+        }
+
+        // Create rain on page load
+        window.addEventListener('load', createRain);
+
+        // Optional: Create new drops as old ones fall off screen
+        setInterval(() => {
+            const drops = document.querySelectorAll('.drop');
+            drops.forEach(drop => {
+                if (drop.offsetTop > window.innerHeight) {
+                    drop.remove();
+                }
+            });
+        }, 1000);
+    </script>
+</body>
+</html>
