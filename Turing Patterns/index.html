@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Turing Patterns - Reaction Diffusion Simulator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Turing Patterns</h1>
+  <div class="wrap">
+    <canvas id="canvas" width="620" height="620"></canvas>
+    <div id="controls">
+      <div class="header-row">
+        <div>
+          <span class="small">Reaction-Diffusion Simulator</span>
+        </div>
+      </div>
+
+      <!-- Chemical Parameters -->
+      <div class="row">
+        <label>Feed Rate</label>
+        <span id="feedVal">0.0360</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="feed" min="0.005" max="0.1" step="0.0001" value="0.036">
+      </div>
+
+      <div class="row">
+        <label>Kill Rate</label>
+        <span id="killVal">0.0600</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="kill" min="0.03" max="0.08" step="0.0001" value="0.06">
+      </div>
+
+      <div class="row">
+        <label>Diffusion A</label>
+        <span id="dAVal">1.00</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="dA" min="0.1" max="2.0" step="0.01" value="1.0">
+      </div>
+
+      <div class="row">
+        <label>Diffusion B</label>
+        <span id="dBVal">0.500</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="dB" min="0.1" max="1.0" step="0.01" value="0.5">
+      </div>
+
+      <!-- Speed Control -->
+      <div class="row">
+        <label>Iterations/Frame</label>
+        <span id="itersVal">2</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="iters" min="1" max="10" step="1" value="2">
+      </div>
+
+      <!-- Shape Seeding -->
+      <div class="row">
+        <label>Initial Shape</label>
+      </div>
+      <div class="row buttons">
+        <select id="shape">
+          <option value="center">Center Square</option>
+          <option value="circle">Circle</option>
+          <option value="ring">Ring</option>
+          <option value="stripes">Stripes</option>
+          <option value="cross">Cross</option>
+          <option value="random">Random</option>
+        </select>
+        <button id="applyShape">Apply</button>
+      </div>
+
+      <!-- Reaction-Diffusion Systems -->
+      <div class="row">
+        <label style="margin-bottom:6px; display:block; width:100%">Reaction Systems</label>
+      </div>
+      <div id="systemContainer" style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px"></div>
+
+      <!-- Presets -->
+      <div class="row">
+        <label>Load Preset</label>
+      </div>
+      <div class="row buttons">
+        <select id="presets">
+          <option value="spots">Spotted Leopard</option>
+          <option value="coral">Coral Growth</option>
+          <option value="waves">Wave Dynamics</option>
+          <option value="maze">Maze Pattern</option>
+          <option value="stripes">Striped</option>
+          <option value="worms">Wandering Worms</option>
+          <option value="labyrinth">Labyrinth</option>
+        </select>
+        <button id="applyPreset">Load</button>
+      </div>
+
+      <!-- Palette -->
+      <div class="row">
+        <label>Color Palette</label>
+      </div>
+      <div class="row buttons">
+        <select id="palette">
+          <option value="iridescent">Iridescent</option>
+          <option value="oilslick">Oil Slick</option>
+          <option value="metallic">Metallic Rainbow</option>
+          <option value="classic">Classic</option>
+          <option value="blue">Blue</option>
+          <option value="contrast">Contrast</option>
+          <option value="grey">Grey</option>
+        </select>
+      </div>
+
+      <!-- Animated Palette -->
+      <div class="row">
+        <label><input type="checkbox" id="animPalette"> Animate Palette</label>
+      </div>
+
+      <div class="row" style="display:none">
+        <label>Palette Speed</label>
+        <span id="palSpeedVal">0.020</span>
+      </div>
+      <div class="row buttons" style="display:none">
+        <input type="range" id="palSpeed" min="0" max="0.1" step="0.001" value="0.02">
+      </div>
+
+      <!-- Bloom Effects -->
+      <div class="row">
+        <label>Bloom Intensity</label>
+        <span id="bloomIntensityVal">0.25</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="bloomIntensity" min="0" max="1" step="0.01" value="0.25">
+      </div>
+
+      <div class="row">
+        <label>Bloom Radius</label>
+        <span id="bloomRadiusVal">8</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="bloomRadius" min="0" max="20" step="1" value="8">
+      </div>
+
+      <!-- Brush Mode -->
+      <div class="row">
+        <label>Brush Mode</label>
+      </div>
+      <div class="row buttons">
+        <select id="brushMode">
+          <option value="add">Add</option>
+          <option value="remove">Remove</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Brush Size</label>
+        <span id="brushSizeVal">8</span>
+      </div>
+      <div class="row buttons">
+        <input type="range" id="brushSize" min="1" max="40" step="1" value="8">
+      </div>
+
+      <!-- Main Controls -->
+      <div class="row buttons">
+        <button id="randomize">Randomize</button>
+        <button id="pause">Pause</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <div class="row buttons">
+        <button id="save">Save Image</button>
+      </div>
+
+      <div class="credit">Click on canvas to paint with the brush!</div>
+    </div>
+  </div>
+
+  <script src="turing.js"></script>
+</body>
+</html>

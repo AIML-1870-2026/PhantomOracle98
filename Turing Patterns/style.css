@@ -1,0 +1,26 @@
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#111; color:#eee; margin:16px; }
+body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: radial-gradient(1200px 800px at 10% 10%, #081018 0%, #06060a 20%, #060616 50%, #04040a 100%); color:#eef5ff; margin:18px; }
+h1 { font-size:20px; margin:0 0 10px 0; letter-spacing:0.6px }
+.wrap { display:flex; gap:16px; align-items:flex-start; max-width:1100px }
+canvas { border-radius:8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); image-rendering: pixelated; background:#000 }
+#controls { width:320px; background: linear-gradient(180deg, rgba(10,12,16,0.85), rgba(8,9,12,0.85)); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); backdrop-filter: blur(6px); box-shadow: 0 8px 30px rgba(6,8,12,0.6) }
+.row { display:flex; justify-content:space-between; align-items:center; margin:8px 0 }
+.buttons { gap:8px }
+input[type=range] { width:160px }
+button { background:linear-gradient(180deg,#1b1f25,#121417); color:#e7eef9; border:1px solid rgba(255,255,255,0.04); padding:7px 12px; border-radius:6px; transition:transform .08s ease, box-shadow .12s ease }
+button:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(3,6,12,0.6) }
+label { font-size:13px }
+span { font-family: monospace; font-size:12px }
+
+.presets { gap:8px; align-items:center }
+select { background:#111; color:#eee; border:1px solid #333; padding:4px }
+#controls .row { align-items:center }
+canvas.painting { cursor: crosshair; }
+input[type=checkbox] { transform: scale(1.05); margin-right:6px }
+
+.header-row { display:flex; gap:12px; align-items:center; margin-bottom:10px }
+.small { font-size:12px; color:rgba(230,235,250,0.75) }
+.credit { font-size:11px; color:rgba(200,210,230,0.55); margin-top:8px }
+
+#systemContainer button { font-size:10px; padding:6px 6px; margin:2px 0; width:100%; transition:all .15s ease; background:linear-gradient(180deg,#252a31,#1a1d22) }
+#systemContainer button:hover { background:linear-gradient(180deg,#2d3339,#1f2228); box-shadow:0 4px 12px rgba(100,150,255,0.15) }
