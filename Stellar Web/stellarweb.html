@@ -22,31 +22,151 @@
             background: #000;
         }
 
-        .info {
+        .controls-panel {
             position: fixed;
             top: 20px;
             left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(200, 50, 50, 0.5);
+            border-radius: 8px;
             color: #ff6464;
             font-size: 0.9rem;
             z-index: 10;
+            font-family: monospace;
+            max-width: 300px;
+        }
+
+        .controls-header {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            border-bottom: 1px solid rgba(200, 50, 50, 0.3);
+        }
+
+        .controls-header:hover {
+            background: rgba(200, 50, 50, 0.1);
+        }
+
+        .controls-content {
+            display: none;
+            padding: 12px 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .controls-content.open {
+            display: block;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+
+        .control-value {
+            color: #ffb3b3;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(200, 50, 50, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6464;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6464;
+            cursor: pointer;
+            border: none;
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: transparent;
+            border: none;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div class="info">
-        <p>Stellar Web Network</p>
+    
+    <div class="controls-panel">
+        <div class="controls-header" onclick="toggleControls()">
+            <span>⚙ Stellar Web Controls</span>
+            <span id="toggle-arrow">▼</span>
+        </div>
+        
+        <div class="controls-content" id="controls-content">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Number of Stars</span>
+                    <span class="control-value" id="stars-value">100</span>
+                </div>
+                <input type="range" id="numStars" min="20" max="300" value="100" oninput="updateConfig('numStars', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Connection Distance</span>
+                    <span class="control-value" id="distance-value">150</span>
+                </div>
+                <input type="range" id="maxDistance" min="50" max="300" value="150" oninput="updateConfig('maxDistance', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Movement Speed</span>
+                    <span class="control-value" id="speed-value">0.3</span>
+                </div>
+                <input type="range" id="speed" min="0.05" max="1" step="0.05" value="0.3" oninput="updateConfig('speed', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Star Size</span>
+                    <span class="control-value" id="size-value">2</span>
+                </div>
+                <input type="range" id="starSize" min="0.5" max="5" step="0.5" value="2" oninput="updateConfig('starSize', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Glow Intensity</span>
+                    <span class="control-value" id="glow-value">100%</span>
+                </div>
+                <input type="range" id="glowIntensity" min="0" max="200" value="100" oninput="updateConfig('glowIntensity', this.value)">
+            </div>
+        </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        // Configuration
-        const config = {
+        let configState = {
             numStars: 100,
             maxConnectionDistance: 150,
             starSize: 2,
@@ -54,17 +174,62 @@
             connectionColor: 'rgba(200, 50, 50, 0.3)',
             starColor: 'rgba(255, 100, 100, 0.9)',
             starGlowColor: 'rgba(200, 30, 30, 0.8)',
-            speed: 0.3
+            speed: 0.3,
+            glowIntensity: 100
         };
+
+        let stars = [];
+        let needsReset = false;
+
+        function toggleControls() {
+            const content = document.getElementById('controls-content');
+            const arrow = document.getElementById('toggle-arrow');
+            content.classList.toggle('open');
+            arrow.textContent = content.classList.contains('open') ? '▲' : '▼';
+        }
+
+        function updateConfig(key, value) {
+            const numValue = parseFloat(value);
+            
+            if (key === 'numStars') {
+                configState.numStars = parseInt(value);
+                document.getElementById('stars-value').textContent = value;
+                needsReset = true;
+            } else if (key === 'maxDistance') {
+                configState.maxConnectionDistance = numValue;
+                document.getElementById('distance-value').textContent = numValue;
+            } else if (key === 'speed') {
+                configState.speed = numValue;
+                document.getElementById('speed-value').textContent = numValue.toFixed(2);
+                // Update all stars' speeds
+                for (let star of stars) {
+                    star.speed = numValue;
+                }
+            } else if (key === 'starSize') {
+                configState.starSize = numValue;
+                document.getElementById('size-value').textContent = numValue;
+                needsReset = true;
+            } else if (key === 'glowIntensity') {
+                configState.glowIntensity = numValue;
+                document.getElementById('glow-value').textContent = numValue + '%';
+            }
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
         class Star {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * config.speed;
-                this.vy = (Math.random() - 0.5) * config.speed;
+                this.speed = configState.speed;
+                this.vx = (Math.random() - 0.5) * this.speed;
+                this.vy = (Math.random() - 0.5) * this.speed;
                 this.brightness = Math.random();
-                this.size = Math.random() * config.starSize + 1;
+                this.size = Math.random() * configState.starSize + 1;
             }
 
             update() {
@@ -95,11 +260,12 @@
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Radial gradient glow
+                // Radial gradient glow with intensity control
+                const glowMultiplier = configState.glowIntensity / 100;
                 const gradient = ctx.createRadialGradient(this.x, this.y, this.size, this.x, this.y, this.size * 8);
-                gradient.addColorStop(0, `rgba(255, 100, 100, ${this.brightness * 0.6})`);
-                gradient.addColorStop(0.4, `rgba(200, 50, 50, ${this.brightness * 0.3})`);
-                gradient.addColorStop(1, `rgba(139, 0, 0, ${this.brightness * 0.1})`);
+                gradient.addColorStop(0, `rgba(255, 100, 100, ${this.brightness * 0.6 * glowMultiplier})`);
+                gradient.addColorStop(0.4, `rgba(200, 50, 50, ${this.brightness * 0.3 * glowMultiplier})`);
+                gradient.addColorStop(1, `rgba(139, 0, 0, ${this.brightness * 0.1 * glowMultiplier})`);
 
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
@@ -118,23 +284,17 @@
             }
         }
 
-        // Create stars
-        const stars = [];
-        for (let i = 0; i < config.numStars; i++) {
-            stars.push(new Star());
-        }
-
         function drawConnections() {
-            ctx.lineWidth = config.connectionLineWidth;
+            ctx.lineWidth = configState.connectionLineWidth;
             ctx.lineCap = 'round';
 
             for (let i = 0; i < stars.length; i++) {
                 for (let j = i + 1; j < stars.length; j++) {
                     const distance = stars[i].distanceTo(stars[j]);
 
-                    if (distance < config.maxConnectionDistance) {
+                    if (distance < configState.maxConnectionDistance) {
                         // Draw line with opacity based on distance
-                        const opacity = 1 - (distance / config.maxConnectionDistance);
+                        const opacity = 1 - (distance / configState.maxConnectionDistance);
                         ctx.strokeStyle = `rgba(200, 50, 50, ${opacity * 0.5})`;
 
                         ctx.beginPath();
@@ -146,7 +306,21 @@
             }
         }
 
+        // Create initial stars
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < configState.numStars; i++) {
+                stars.push(new Star());
+            }
+            needsReset = false;
+        }
+
         function animate() {
+            // Reset stars if needed
+            if (needsReset) {
+                initStars();
+            }
+
             // Clear canvas with slight fade for trail effect
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -169,7 +343,8 @@
             canvas.height = window.innerHeight;
         });
 
-        // Start animation
+        // Initialize and start animation
+        initStars();
         animate();
     </script>
 </body>
