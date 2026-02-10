@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Web - Star Field</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            background: #000;
+        }
+
+        .info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #64b5f6;
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="info">
+        <p>Stellar Web Network</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Configuration
+        const config = {
+            numStars: 100,
+            maxConnectionDistance: 150,
+            starSize: 2,
+            connectionLineWidth: 0.5,
+            connectionColor: 'rgba(200, 50, 50, 0.3)',
+            starColor: 'rgba(255, 100, 100, 0.9)',
+            starGlowColor: 'rgba(200, 30, 30, 0.8)',
+            speed: 0.3
+        };
+
+        class Star {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * config.speed;
+                this.vy = (Math.random() - 0.5) * config.speed;
+                this.brightness = Math.random();
+                this.size = Math.random() * config.starSize + 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap around canvas
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                // Twinkle effect
+                this.brightness += (Math.random() - 0.5) * 0.1;
+                this.brightness = Math.max(0.3, Math.min(1, this.brightness));
+            }
+
+            draw() {
+                // Soft shadow
+                ctx.shadowColor = 'rgba(139, 0, 0, 0.5)';
+                ctx.shadowBlur = 20;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+
+                // Core star
+                ctx.fillStyle = `rgba(255, 120, 120, ${this.brightness})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Radial gradient glow
+                const gradient = ctx.createRadialGradient(this.x, this.y, this.size, this.x, this.y, this.size * 8);
+                gradient.addColorStop(0, `rgba(255, 100, 100, ${this.brightness * 0.6})`);
+                gradient.addColorStop(0.4, `rgba(200, 50, 50, ${this.brightness * 0.3})`);
+                gradient.addColorStop(1, `rgba(139, 0, 0, ${this.brightness * 0.1})`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Reset shadow
+                ctx.shadowColor = 'rgba(0, 0, 0, 0)';
+                ctx.shadowBlur = 0;
+            }lineWidth = config.connectionLineWidth;
+            ctx.lineCap = 'round';
+
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i + 1; j < stars.length; j++) {
+                    const distance = stars[i].distanceTo(stars[j]);
+
+                    if (distance < config.maxConnectionDistance) {
+                        // Draw line with opacity based on distance
+                        const opacity = 1 - (distance / config.maxConnectionDistance);
+                        ctx.strokeStyle = `rgba(200, 50, 50, ${opacity * 0.5
+        for (let i = 0; i < config.numStars; i++) {
+            stars.push(new Star());
+        }
+
+        function drawConnections() {
+            ctx.strokeStyle = config.connectionColor;
+            ctx.lineWidth = config.connectionLineWidth;
+
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i + 1; j < stars.length; j++) {
+                    const distance = stars[i].distanceTo(stars[j]);
+
+                    if (distance < config.maxConnectionDistance) {
+                        // Draw line with opacity based on distance
+                        const opacity = 1 - (distance / config.maxConnectionDistance);
+                        ctx.strokeStyle = `rgba(100, 181, 246, ${opacity * 0.4})`;
+
+                        ctx.beginPath();
+                        ctx.moveTo(stars[i].x, stars[i].y);
+                        ctx.lineTo(stars[j].x, stars[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            // Clear canvas with slight fade for trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update and draw stars
+            for (let star of stars) {
+                star.update();
+                star.draw();
+            }
+
+            // Draw connections
+            drawConnections();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>
