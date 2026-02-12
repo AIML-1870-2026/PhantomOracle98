@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starfield</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            min-width: 200px;
+            overflow: hidden;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .controls-header:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .controls-header h2 {
+            color: #ccc;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin: 0;
+        }
+
+        .controls-header .arrow {
+            color: #666;
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+        }
+
+        .controls.collapsed .arrow {
+            transform: rotate(180deg);
+        }
+
+        .controls-body {
+            padding: 0 20px 20px;
+            max-height: 300px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .controls.collapsed .controls-body {
+            max-height: 0;
+            padding: 0 20px;
+        }
+
+        .control-group {
+            margin-bottom: 14px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-group label {
+            display: block;
+            color: #8a8aa0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            color: #ddd;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        .control-group select:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .control-group select option {
+            background: #1a1a2e;
+            color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls" id="controls">
+        <div class="controls-header" onclick="document.getElementById('controls').classList.toggle('collapsed')">
+            <h2>Controls</h2>
+            <span class="arrow">&#9650;</span>
+        </div>
+        <div class="controls-body">
+        <div class="control-group">
+            <label>Trail Length</label>
+            <select id="trailLength">
+                <option value="0.03">Long</option>
+                <option value="0.08">Medium</option>
+                <option value="0.2" selected>Short</option>
+                <option value="1">None</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Star Speed</label>
+            <select id="starSpeed">
+                <option value="1">Slow</option>
+                <option value="3" selected>Medium</option>
+                <option value="6">Fast</option>
+                <option value="12">Ludicrous</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Star Size</label>
+            <select id="starSize">
+                <option value="1">Small</option>
+                <option value="2" selected>Medium</option>
+                <option value="3.5">Large</option>
+                <option value="5">Huge</option>
+            </select>
+        </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const trailSelect = document.getElementById('trailLength');
+        const speedSelect = document.getElementById('starSpeed');
+        const sizeSelect = document.getElementById('starSize');
+
+        let width, height, centerX, centerY;
+        const starCount = 400;
+        const stars = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function createStar() {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * Math.max(width, height) * 0.5;
+            return {
+                x: Math.cos(angle) * radius,
+                y: Math.sin(angle) * radius,
+                z: Math.random() * 1000,
+                baseSize: 0.5 + Math.random() * 1.5,
+                hue: 200 + Math.random() * 40
+            };
+        }
+
+        for (let i = 0; i < starCount; i++) {
+            stars.push(createStar());
+        }
+
+        function drawStar(cx, cy, points, outerR, innerR) {
+            ctx.beginPath();
+            for (let i = 0; i < points * 2; i++) {
+                const r = i % 2 === 0 ? outerR : innerR;
+                const angle = (Math.PI / points) * i - Math.PI / 2;
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function animate() {
+            const fadeAlpha = parseFloat(trailSelect.value);
+            const speed = parseFloat(speedSelect.value);
+            const sizeMultiplier = parseFloat(sizeSelect.value);
+
+            // Draw fade overlay for trail effect
+            ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < stars.length; i++) {
+                const star = stars[i];
+
+                // Move star toward camera
+                star.z -= speed;
+
+                // Reset star if it passes the camera
+                if (star.z <= 0) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * Math.max(width, height) * 0.5;
+                    star.x = Math.cos(angle) * radius;
+                    star.y = Math.sin(angle) * radius;
+                    star.z = 1000;
+                    star.baseSize = 0.5 + Math.random() * 1.5;
+                    star.hue = 200 + Math.random() * 40;
+                }
+
+                // Project 3D position to 2D
+                const factor = 300 / star.z;
+                const sx = star.x * factor + centerX;
+                const sy = star.y * factor + centerY;
+
+                // Skip stars outside the viewport
+                if (sx < -10 || sx > width + 10 || sy < -10 || sy > height + 10) continue;
+
+                // Size and brightness based on depth
+                const depth = 1 - star.z / 1000;
+                const size = star.baseSize * sizeMultiplier * (0.3 + depth * 1.5);
+                const lightness = 50 + depth * 30;
+                const saturation = 60 + depth * 30;
+
+                ctx.fillStyle = `hsl(${star.hue}, ${saturation}%, ${lightness}%)`;
+                drawStar(sx, sy, 5, size, size * 0.4);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
