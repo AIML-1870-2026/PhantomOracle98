@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Julia Set Fractal</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 10px rgba(255, 100, 200, 0.5);
+        }
+
+        .info {
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        canvas {
+            border: 2px solid #ff64c8;
+            box-shadow: 0 0 20px rgba(255, 100, 200, 0.3);
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 100, 200, 0.1);
+            border: 1px solid #ff64c8;
+            border-radius: 8px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        input[type="range"] {
+            width: 120px;
+            cursor: pointer;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #ff64c8;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #ff64c8, #ff3366);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 100, 200, 0.5);
+        }
+
+        .presets {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 100, 200, 0.05);
+            border: 1px solid rgba(255, 100, 200, 0.3);
+            border-radius: 8px;
+        }
+
+        .presets label {
+            display: block;
+            margin-bottom: 10px;
+            color: #ff64c8;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 8px 14px;
+            background: rgba(255, 100, 200, 0.2);
+            border: 1px solid #ff64c8;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 100, 200, 0.4);
+            transform: scale(1.05);
+        }
+
+        .preset-btn.active {
+            background: linear-gradient(135deg, #ff64c8, #ff3366);
+            box-shadow: 0 0 10px rgba(255, 100, 200, 0.5);
+        }
+
+        .animation-controls {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(100, 200, 255, 0.05);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .animation-controls label {
+            font-size: 14px;
+        }
+
+        #animateBtn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #64c8ff, #3366ff);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        #animateBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.5);
+        }
+
+        #animateBtn.playing {
+            background: linear-gradient(135deg, #ff9933, #ff6633);
+        }
+
+        #speedControl {
+            width: 100px;
+        }
+
+        .color-controls {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(50, 200, 100, 0.05);
+            border: 1px solid rgba(50, 200, 100, 0.3);
+            border-radius: 8px;
+        }
+
+        .color-controls label {
+            display: block;
+            margin-bottom: 10px;
+            color: #32c864;
+        }
+
+        .color-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            padding: 8px 14px;
+            background: rgba(50, 200, 100, 0.2);
+            border: 1px solid #32c864;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .color-btn:hover {
+            background: rgba(50, 200, 100, 0.4);
+            transform: scale(1.05);
+        }
+
+        .color-btn.active {
+            background: linear-gradient(135deg, #32c864, #00ff88);
+            box-shadow: 0 0 10px rgba(50, 200, 100, 0.5);
+        }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>Julia Set Fractal Explorer</h1>
+    <div class="info">Click and drag to pan • Scroll to zoom • Adjust parameters below</div>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Real (Re):</label>
+            <input type="range" id="realSlider" min="-2" max="2" step="0.01" value="-0.7">
+            <input type="number" id="realValue" min="-2" max="2" step="0.01" value="-0.7">
+        </div>
+
+        <div class="control-group">
+            <label>Imaginary (Im):</label>
+            <input type="range" id="imagSlider" min="-2" max="2" step="0.01" value="0.27015">
+            <input type="number" id="imagValue" min="-2" max="2" step="0.01" value="0.27015">
+        </div>
+
+        <div class="control-group">
+            <label>Max Iterations:</label>
+            <input type="number" id="maxIterations" min="10" max="1000" step="10" value="100">
+        </div>
+
+        <button id="resetBtn">Reset View</button>
+    </div>
+
+    <div class="presets">
+        <label>Famous Julia Sets:</label>
+        <div class="preset-buttons">
+            <button class="preset-btn active" data-name="Spiral" data-real="-0.7" data-imag="0.27015">Spiral</button>
+            <button class="preset-btn" data-name="Dendrite" data-real="-0.8" data-imag="0.156">Dendrite</button>
+            <button class="preset-btn" data-name="Rabbit" data-real="-0.123" data-imag="0.645">Rabbit</button>
+            <button class="preset-btn" data-name="Seahorse" data-real="-0.7269" data-imag="0.1889">Seahorse</button>
+            <button class="preset-btn" data-name="Twisty" data-real="-0.162" data-imag="1.04">Twisty</button>
+            <button class="preset-btn" data-name="Galaxy" data-real="-0.4" data-imag="0.6">Galaxy</button>
+        </div>
+    </div>
+
+    <div class="animation-controls">
+        <button id="animateBtn">▶ Animate Journey</button>
+        <div class="control-group">
+            <label>Speed:</label>
+            <input type="range" id="speedControl" min="0.1" max="3" step="0.1" value="1">
+        </div>
+    </div>
+
+    <div class="color-controls">
+        <label>Color Scheme:</label>
+        <div class="color-buttons">
+            <button class="color-btn active" data-scheme="bright">Bright</button>
+            <button class="color-btn" data-scheme="warm">Warm</button>
+            <button class="color-btn" data-scheme="cool">Cool</button>
+            <button class="color-btn" data-scheme="pastel">Pastel</button>
+            <button class="color-btn" data-scheme="fire">Fire</button>
+            <button class="color-btn" data-scheme="ocean">Ocean</button>
+        </div>
+    </div>
+
+    <div class="stats">
+        <span id="stats"></span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        const width = Math.min(window.innerWidth - 40, 800);
+        const height = Math.min(window.innerHeight - 300, 600);
+        canvas.width = width;
+        canvas.height = height;
+
+        // Parameters
+        let realC = -0.7;
+        let imagC = 0.27015;
+        let maxIter = 100;
+
+        // View parameters
+        let centerX = 0;
+        let centerY = 0;
+        let zoom = 1;
+
+        // Color scheme
+        let currentColorScheme = 'bright';
+
+        // Mouse handling
+        let isDragging = false;
+        let dragStartX, dragStartY;
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.offsetX;
+            dragStartY = e.offsetY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const dx = (e.offsetX - dragStartX) / (width * zoom);
+                const dy = (e.offsetY - dragStartY) / (height * zoom);
+                centerX -= dx;
+                centerY -= dy;
+                dragStartX = e.offsetX;
+                dragStartY = e.offsetY;
+                render();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.8 : 1.2;
+            zoom *= zoomFactor;
+            zoom = Math.max(0.1, Math.min(zoom, 100));
+            render();
+        });
+
+        // UI Controls
+        const realSlider = document.getElementById('realSlider');
+        const realValue = document.getElementById('realValue');
+        const imagSlider = document.getElementById('imagSlider');
+        const imagValue = document.getElementById('imagValue');
+        const iterInput = document.getElementById('maxIterations');
+        const resetBtn = document.getElementById('resetBtn');
+        const statsDiv = document.getElementById('stats');
+
+        realSlider.addEventListener('input', (e) => {
+            realC = parseFloat(e.target.value);
+            realValue.value = realC;
+            render();
+        });
+
+        realValue.addEventListener('input', (e) => {
+            realC = parseFloat(e.target.value);
+            realSlider.value = realC;
+            render();
+        });
+
+        imagSlider.addEventListener('input', (e) => {
+            imagC = parseFloat(e.target.value);
+            imagValue.value = imagC;
+            render();
+        });
+
+        imagValue.addEventListener('input', (e) => {
+            imagC = parseFloat(e.target.value);
+            imagSlider.value = imagC;
+            render();
+        });
+
+        iterInput.addEventListener('input', (e) => {
+            maxIter = parseInt(e.target.value);
+            render();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            centerX = 0;
+            centerY = 0;
+            zoom = 1;
+            render();
+        });
+
+        // Preset buttons
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const real = parseFloat(btn.dataset.real);
+                const imag = parseFloat(btn.dataset.imag);
+
+                realC = real;
+                imagC = imag;
+                centerX = 0;
+                centerY = 0;
+                zoom = 1;
+
+                realSlider.value = realC;
+                realValue.value = realC;
+                imagSlider.value = imagC;
+                imagValue.value = imagC;
+
+                // Update active button
+                presetBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                render();
+            });
+        });
+
+        // Animation system
+        const animateBtn = document.getElementById('animateBtn');
+        const speedControl = document.getElementById('speedControl');
+
+        let isAnimating = false;
+        let animationProgress = 0;
+        let animationSpeed = 1;
+
+        // Define a beautiful journey through Julia set space
+        const animationPath = [
+            { real: -0.7, imag: 0.27015 },      // Spiral
+            { real: -0.8, imag: 0.156 },         // Dendrite
+            { real: -0.123, imag: 0.645 },       // Rabbit
+            { real: -0.7269, imag: 0.1889 },     // Seahorse
+            { real: -0.162, imag: 1.04 },        // Twisty
+            { real: -0.4, imag: 0.6 },           // Galaxy
+            { real: -0.748, imag: 0.099 },       // Dragon
+            { real: -0.162, imag: -1.04 },       // Inverse Twisty
+            { real: 0.285, imag: 0.01 },         // Starfish
+            { real: -0.7, imag: 0.27015 }        // Back to Spiral
+        ];
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function getCurrentPathPoint(progress) {
+            // progress goes from 0 to 1
+            const scaledProgress = progress * (animationPath.length - 1);
+            const currentIndex = Math.floor(scaledProgress);
+            const nextIndex = Math.min(currentIndex + 1, animationPath.length - 1);
+            const localProgress = scaledProgress - currentIndex;
+
+            const current = animationPath[currentIndex];
+            const next = animationPath[nextIndex];
+
+            return {
+                real: lerp(current.real, next.real, localProgress),
+                imag: lerp(current.imag, next.imag, localProgress)
+            };
+        }
+
+        function animationFrame() {
+            if (isAnimating) {
+                animationProgress += 0.0005 * animationSpeed;
+
+                if (animationProgress >= 1) {
+                    animationProgress = 0;
+                }
+
+                const point = getCurrentPathPoint(animationProgress);
+                realC = point.real;
+                imagC = point.imag;
+
+                // Update sliders to reflect current values
+                realSlider.value = realC;
+                realValue.value = realC.toFixed(5);
+                imagSlider.value = imagC;
+                imagValue.value = imagC.toFixed(5);
+
+                render();
+            }
+
+            requestAnimationFrame(animationFrame);
+        }
+
+        animateBtn.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+            if (isAnimating) {
+                animateBtn.textContent = '⏸ Stop Journey';
+                animateBtn.classList.add('playing');
+                animationProgress = 0;
+                animationFrame();
+            } else {
+                animateBtn.textContent = '▶ Animate Journey';
+                animateBtn.classList.remove('playing');
+            }
+        });
+
+        speedControl.addEventListener('input', (e) => {
+            animationSpeed = parseFloat(e.target.value);
+        });
+
+        // Color scheme buttons
+        const colorBtns = document.querySelectorAll('.color-btn');
+        colorBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentColorScheme = btn.dataset.scheme;
+
+                // Update active button
+                colorBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                render();
+            });
+        });
+
+        function juliaSet(px, py, cx, cy, maxIterations) {
+            let x = px;
+            let y = py;
+            let iterations = 0;
+
+            while (iterations < maxIterations) {
+                const x2 = x * x;
+                const y2 = y * y;
+
+                if (x2 + y2 > 4) break;
+
+                const xtemp = x2 - y2 + cx;
+                y = 2 * x * y + cy;
+                x = xtemp;
+
+                iterations++;
+            }
+
+            return iterations;
+        }
+
+        function getColor(iterations, maxIterations) {
+            if (iterations === maxIterations) {
+                return { r: 0, g: 0, b: 0 };
+            }
+
+            const t = iterations / maxIterations;
+
+            switch (currentColorScheme) {
+                case 'warm':
+                    // Warm: red, orange, yellow
+                    return {
+                        r: Math.round(255 * (1 - Math.pow(1 - t, 2))),
+                        g: Math.round(150 * t),
+                        b: Math.round(50 * Math.sin(t * Math.PI))
+                    };
+
+                case 'cool':
+                    // Cool: blue, cyan, purple
+                    return {
+                        r: Math.round(100 * Math.sin(t * Math.PI)),
+                        g: Math.round(150 + 100 * Math.sin(t * Math.PI * 1.5)),
+                        b: Math.round(255 * (1 - Math.pow(1 - t, 2)))
+                    };
+
+                case 'pastel':
+                    // Pastel: soft colors
+                    const h = (t * 360) % 360;
+                    const s = 60;
+                    const l = 70;
+                    return hslToRgb(h, s, l);
+
+                case 'fire':
+                    // Fire: black to red to yellow to white
+                    if (t < 0.5) {
+                        return {
+                            r: Math.round(255 * (t * 2)),
+                            g: 0,
+                            b: 0
+                        };
+                    } else {
+                        return {
+                            r: 255,
+                            g: Math.round(255 * ((t - 0.5) * 2)),
+                            b: Math.round(150 * ((t - 0.5) * 2))
+                        };
+                    }
+
+                case 'ocean':
+                    // Ocean: dark blue to cyan to white
+                    return {
+                        r: Math.round(100 + 155 * t),
+                        g: Math.round(150 + 105 * t),
+                        b: Math.round(255 * (1 - Math.pow(1 - t, 1.5)))
+                    };
+
+                case 'bright':
+                default:
+                    // Bright: rainbow HSL
+                    const hue = (t * 360) % 360;
+                    const saturation = 100;
+                    const lightness = 50 + (t * 30);
+                    return hslToRgb(hue, saturation, lightness);
+            }
+        }
+
+        function render() {
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+
+            for (let py = 0; py < height; py++) {
+                for (let px = 0; px < width; px++) {
+                    // Map pixel to complex plane
+                    const x = (px - width / 2) / (width * zoom) + centerX;
+                    const y = (py - height / 2) / (height * zoom) + centerY;
+
+                    const iterations = juliaSet(x, y, realC, imagC, maxIter);
+                    const rgb = getColor(iterations, maxIter);
+
+                    const index = (py * width + px) * 4;
+                    data[index] = rgb.r;
+                    data[index + 1] = rgb.g;
+                    data[index + 2] = rgb.b;
+                    data[index + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            statsDiv.textContent = `c = ${realC.toFixed(4)} + ${imagC.toFixed(4)}i | Zoom: ${zoom.toFixed(2)}x | Iterations: ${maxIter} | Scheme: ${currentColorScheme.charAt(0).toUpperCase() + currentColorScheme.slice(1)}`;
+        }
+
+        function hslToRgb(h, s, l) {
+            s /= 100;
+            l /= 100;
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = l - c / 2;
+
+            let r, g, b;
+
+            if (h < 60) {
+                r = c; g = x; b = 0;
+            } else if (h < 120) {
+                r = x; g = c; b = 0;
+            } else if (h < 180) {
+                r = 0; g = c; b = x;
+            } else if (h < 240) {
+                r = 0; g = x; b = c;
+            } else if (h < 300) {
+                r = x; g = 0; b = c;
+            } else {
+                r = c; g = 0; b = x;
+            }
+
+            return {
+                r: Math.round((r + m) * 255),
+                g: Math.round((g + m) * 255),
+                b: Math.round((b + m) * 255)
+            };
+        }
+
+        // Initial render
+        render();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const newWidth = Math.min(window.innerWidth - 40, 800);
+            const newHeight = Math.min(window.innerHeight - 300, 600);
+            if (newWidth !== width || newHeight !== height) {
+                location.reload();
+            }
+        });
+    </script>
+</body>
+</html>
