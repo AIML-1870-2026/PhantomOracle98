@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Neuron Quest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  canvas#bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #00e5ff, #aa66ff, #ff4488);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #8888aa;
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+  }
+
+  /* ── Main neuron layout ── */
+  .neuron-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 36px;
+  }
+
+  /* Left side: control cards + input nodes */
+  .input-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  /* Compact control cards */
+  .control-card {
+    background: rgba(18, 18, 36, 0.85);
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 12px 16px;
+    width: 220px;
+    transition: border-color 0.3s;
+  }
+
+  .control-card:hover { border-color: #444; }
+
+  .control-card label {
+    display: block;
+    font-size: 0.72rem;
+    color: #8888aa;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 2px;
+  }
+
+  .control-card .value-display {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .card-time .value-display { color: #00e5ff; }
+  .card-grade .value-display { color: #44dd88; }
+  .card-tired .value-display { color: #ffaa44; }
+  .card-due .value-display { color: #ff4488; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: #1a1a3a;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #aa66ff;
+    border: 2px solid #e0e0f0;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #aa66ff;
+    border: 2px solid #e0e0f0;
+    cursor: pointer;
+  }
+
+  select {
+    width: 100%;
+    padding: 7px 10px;
+    background: #1a1a3a;
+    color: #e0e0f0;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  select:focus { border-color: #aa66ff; }
+
+  /* Input nodes */
+  .input-node {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    border: 2px solid #333;
+    background: rgba(20, 20, 40, 0.8);
+    flex-shrink: 0;
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .input-node.active {
+    border-color: #00e5ff;
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.4);
+  }
+
+  /* Dendrites */
+  .dendrites {
+    width: 100px;
+    flex-shrink: 0;
+    position: relative;
+    align-self: stretch;
+  }
+
+  .dendrite-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .dendrite-line {
+    stroke: #2a2a4a;
+    stroke-width: 2;
+    transition: stroke 0.4s, stroke-width 0.4s;
+  }
+
+  .dendrite-line.firing {
+    stroke: #00e5ff;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 4px rgba(0,229,255,0.5));
+  }
+
+  /* Soma */
+  .soma {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #1a1a3a, #0d0d20);
+    border: 3px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    transition: border-color 0.6s, box-shadow 0.6s;
+  }
+
+  .soma.deciding {
+    border-color: #aa66ff;
+    box-shadow: 0 0 30px rgba(170, 102, 255, 0.5);
+    animation: pulse-soma 1.2s ease-in-out infinite;
+  }
+
+  .soma.stay-up {
+    border-color: #ff4488;
+    box-shadow: 0 0 30px rgba(255, 68, 136, 0.5);
+  }
+
+  .soma.go-sleep {
+    border-color: #00e5ff;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+  }
+
+  @keyframes pulse-soma {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  /* Axon */
+  .axon {
+    width: 70px;
+    height: 4px;
+    background: #2a2a4a;
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  .axon.firing {
+    background: linear-gradient(90deg, #aa66ff, #ff4488);
+    box-shadow: 0 0 8px rgba(170,102,255,0.4);
+  }
+
+  /* Output node */
+  .output-node {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    background: rgba(20, 20, 40, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .output-node.stay-up {
+    border-color: #ff4488;
+    box-shadow: 0 0 14px rgba(255,68,136,0.5);
+  }
+
+  .output-node.go-sleep {
+    border-color: #00e5ff;
+    box-shadow: 0 0 14px rgba(0,229,255,0.5);
+  }
+
+  /* Fire button */
+  .fire-btn-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+
+  .fire-btn {
+    padding: 14px 48px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #aa66ff, #ff4488);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(170, 102, 255, 0.3);
+  }
+
+  .fire-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(170, 102, 255, 0.5);
+  }
+
+  .fire-btn:active { transform: translateY(0); }
+
+  /* Result panel */
+  .result-panel {
+    background: rgba(18, 18, 36, 0.9);
+    border: 2px solid #2a2a4a;
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s, border-color 0.5s;
+    pointer-events: none;
+  }
+
+  .result-panel.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .result-panel.stay-up { border-color: #ff4488; }
+  .result-panel.go-sleep { border-color: #00e5ff; }
+
+  .result-verdict {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .result-verdict.stay-up { color: #ff4488; }
+  .result-verdict.go-sleep { color: #00e5ff; }
+
+  .result-confidence {
+    font-size: 1.1rem;
+    color: #aaa;
+    margin-bottom: 18px;
+  }
+
+  .result-confidence span {
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+
+  .result-reasoning {
+    color: #bbb;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: left;
+  }
+
+  .result-reasoning li {
+    margin-bottom: 6px;
+    list-style: none;
+    padding-left: 22px;
+    position: relative;
+  }
+
+  .result-reasoning li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  .result-reasoning li.pro::before { background: #ff4488; }
+  .result-reasoning li.con::before { background: #00e5ff; }
+  .result-reasoning li.neutral::before { background: #888; }
+
+  .confidence-bar-wrap {
+    width: 80%;
+    max-width: 400px;
+    margin: 0 auto 20px;
+    height: 10px;
+    background: #1a1a3a;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .confidence-bar {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.8s ease;
+    width: 0%;
+  }
+
+  .confidence-bar.stay-up { background: linear-gradient(90deg, #aa66ff, #ff4488); }
+  .confidence-bar.go-sleep { background: linear-gradient(90deg, #00e5ff, #44dd88); }
+
+  .weight-badges {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .weight-badge {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #333;
+  }
+
+  /* ── Sensitivity Charts ── */
+  .sensitivity-section {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #2a2a4a;
+  }
+
+  .sensitivity-section h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #aa66ff;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .chart-canvas {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border-radius: 10px;
+    background: rgba(10, 10, 26, 0.6);
+  }
+
+  .chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin: 12px auto 0;
+    flex-wrap: wrap;
+  }
+
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #999;
+  }
+
+  .chart-legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .influence-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #8888aa;
+    margin: 24px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 800px) {
+    .neuron-layout {
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .input-rows {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-row {
+      flex-direction: row;
+    }
+
+    .control-card { width: 200px; }
+
+    .dendrites { display: none; }
+
+    .neuron-right {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="container">
+  <h1>Decision Neuron Quest</h1>
+  <p class="subtitle">Should you stay up to do homework? Let the neuron decide.</p>
+
+  <!-- Neuron Layout: controls on left, neuron graphic in center/right -->
+  <div class="neuron-layout">
+
+    <!-- Left: controls paired with input nodes -->
+    <div class="input-rows">
+      <div class="input-row">
+        <div class="control-card card-time">
+          <label>&#128337; How Late Is It?</label>
+          <div class="value-display" id="time-display">10:00 PM</div>
+          <input type="range" id="time-slider" min="21" max="27" step="0.5" value="22">
+        </div>
+        <div class="input-node" id="node-time" title="Time">&#128337;</div>
+      </div>
+
+      <div class="input-row">
+        <div class="control-card card-grade">
+          <label>&#127891; Current Grade</label>
+          <div class="value-display" id="grade-display">85%</div>
+          <input type="range" id="grade-slider" min="0" max="100" step="1" value="85">
+        </div>
+        <div class="input-node" id="node-grade" title="Grade">&#127891;</div>
+      </div>
+
+      <div class="input-row">
+        <div class="control-card card-tired">
+          <label>&#128564; How Tired Are You?</label>
+          <div class="value-display" id="tired-display">5 / 10</div>
+          <input type="range" id="tired-slider" min="1" max="10" step="1" value="5">
+        </div>
+        <div class="input-node" id="node-tired" title="Tired">&#128564;</div>
+      </div>
+
+      <div class="input-row">
+        <div class="control-card card-due">
+          <label>&#128197; When Is It Due?</label>
+          <div class="value-display" id="due-display">Tomorrow Morning</div>
+          <select id="due-select">
+            <option value="tonight">Tonight / Midnight</option>
+            <option value="tomorrow-morning" selected>Tomorrow Morning</option>
+            <option value="tomorrow-afternoon">Tomorrow Afternoon</option>
+            <option value="later-this-week">Later This Week</option>
+          </select>
+        </div>
+        <div class="input-node" id="node-due" title="Due Date">&#128197;</div>
+      </div>
+    </div>
+
+    <!-- Center: dendrites connecting to soma -->
+    <div class="dendrites" id="dendrites-container">
+      <svg class="dendrite-svg" preserveAspectRatio="none">
+        <line class="dendrite-line" id="dend-0"/>
+        <line class="dendrite-line" id="dend-1"/>
+        <line class="dendrite-line" id="dend-2"/>
+        <line class="dendrite-line" id="dend-3"/>
+      </svg>
+    </div>
+
+    <!-- Right: soma, axon, output -->
+    <div class="soma" id="soma">&#129504;</div>
+    <div class="axon" id="axon"></div>
+    <div class="output-node" id="output-node">&#10067;</div>
+
+  </div>
+
+  <div class="fire-btn-wrap">
+    <button class="fire-btn" id="fire-btn">Fire the Neuron</button>
+  </div>
+
+  <!-- Result -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-verdict" id="result-verdict"></div>
+    <div class="confidence-bar-wrap">
+      <div class="confidence-bar" id="confidence-bar"></div>
+    </div>
+    <div class="result-confidence" id="result-confidence"></div>
+    <ul class="result-reasoning" id="result-reasoning"></ul>
+    <div class="weight-badges" id="weight-badges"></div>
+
+    <!-- Sensitivity Analysis Charts -->
+    <div class="sensitivity-section">
+      <h3>Sensitivity Analysis</h3>
+      <canvas class="chart-canvas" id="sensitivity-chart" width="600" height="300"></canvas>
+      <div class="chart-legend">
+        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#00e5ff"></span> Time</span>
+        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#44dd88"></span> Grade</span>
+        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#ffaa44"></span> Tiredness</span>
+        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#ff4488"></span> Due Date</span>
+      </div>
+      <div class="influence-title">Influence Ranking</div>
+      <canvas class="chart-canvas" id="influence-chart" width="600" height="160"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Background particles ──
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+for (let i = 0; i < 60; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 2 + 0.5,
+    dx: (Math.random() - 0.5) * 0.3,
+    dy: (Math.random() - 0.5) * 0.3,
+    alpha: Math.random() * 0.4 + 0.1
+  });
+}
+
+function drawBg() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    p.x += p.dx;
+    p.y += p.dy;
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width) p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(170, 102, 255, ${p.alpha})`;
+    ctx.fill();
+  });
+
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 120) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(170, 102, 255, ${0.08 * (1 - dist / 120)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ── Position dendrite lines dynamically ──
+function updateDendrites() {
+  const container = document.getElementById('dendrites-container');
+  const somaEl = document.getElementById('soma');
+  const nodes = [
+    document.getElementById('node-time'),
+    document.getElementById('node-grade'),
+    document.getElementById('node-tired'),
+    document.getElementById('node-due')
+  ];
+  const svg = container.querySelector('.dendrite-svg');
+  const parentRect = container.getBoundingClientRect();
+
+  // Soma center relative to dendrite container
+  const somaRect = somaEl.getBoundingClientRect();
+  const sx = somaRect.left - parentRect.left;
+  const sy = somaRect.top + somaRect.height / 2 - parentRect.top;
+
+  // Update SVG viewBox to match container size
+  svg.setAttribute('viewBox', `0 0 ${parentRect.width} ${parentRect.height}`);
+
+  nodes.forEach((node, i) => {
+    const nr = node.getBoundingClientRect();
+    const nx = nr.right - parentRect.left;
+    const ny = nr.top + nr.height / 2 - parentRect.top;
+    const line = document.getElementById('dend-' + i);
+    line.setAttribute('x1', nx);
+    line.setAttribute('y1', ny);
+    line.setAttribute('x2', parentRect.width);
+    line.setAttribute('y2', sy);
+  });
+}
+
+window.addEventListener('resize', updateDendrites);
+window.addEventListener('load', () => {
+  updateDendrites();
+  // Re-run after a beat in case fonts shift layout
+  setTimeout(updateDendrites, 100);
+});
+
+// ── UI Controls ──
+const timeSlider = document.getElementById('time-slider');
+const gradeSlider = document.getElementById('grade-slider');
+const tiredSlider = document.getElementById('tired-slider');
+const dueSelect = document.getElementById('due-select');
+
+const timeDisplay = document.getElementById('time-display');
+const gradeDisplay = document.getElementById('grade-display');
+const tiredDisplay = document.getElementById('tired-display');
+const dueDisplay = document.getElementById('due-display');
+
+function formatTime(val) {
+  let hour = Math.floor(val);
+  const min = (val % 1) === 0.5 ? '30' : '00';
+  if (hour >= 24) hour -= 24;
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${min} ${ampm}`;
+}
+
+timeSlider.addEventListener('input', () => {
+  timeDisplay.textContent = formatTime(parseFloat(timeSlider.value));
+});
+
+gradeSlider.addEventListener('input', () => {
+  gradeDisplay.textContent = gradeSlider.value + '%';
+});
+
+tiredSlider.addEventListener('input', () => {
+  tiredDisplay.textContent = tiredSlider.value + ' / 10';
+});
+
+dueSelect.addEventListener('change', () => {
+  const labels = {
+    'tonight': 'Tonight / Midnight',
+    'tomorrow-morning': 'Tomorrow Morning',
+    'tomorrow-afternoon': 'Tomorrow Afternoon',
+    'later-this-week': 'Later This Week'
+  };
+  dueDisplay.textContent = labels[dueSelect.value];
+});
+
+// ── Neuron Decision Logic ──
+function computeDecision() {
+  const time = parseFloat(timeSlider.value);
+  const grade = parseInt(gradeSlider.value);
+  const tired = parseInt(tiredSlider.value);
+  const due = dueSelect.value;
+
+  const timeScore = Math.max(0, 1 - ((time - 21) / 6));
+  const gradeScore = 1 - (grade / 100) * 0.9;
+  const tiredScore = 1 - ((tired - 1) / 9);
+
+  const dueScores = {
+    'tonight': 1.0,
+    'tomorrow-morning': 0.75,
+    'tomorrow-afternoon': 0.4,
+    'later-this-week': 0.1
+  };
+  const dueScore = dueScores[due];
+
+  const weights = { time: 0.2, grade: 0.2, tired: 0.25, due: 0.35 };
+
+  const weightedSum =
+    timeScore * weights.time +
+    gradeScore * weights.grade +
+    tiredScore * weights.tired +
+    dueScore * weights.due;
+
+  const stayUp = weightedSum >= 0.5;
+  const confidence = Math.round(Math.abs(weightedSum - 0.5) * 2 * 100);
+
+  const reasons = [];
+
+  if (time <= 22) {
+    reasons.push({ text: "It's still a reasonable hour to work.", type: 'pro' });
+  } else if (time <= 24) {
+    reasons.push({ text: "It's getting late but not too extreme.", type: 'neutral' });
+  } else {
+    reasons.push({ text: "It's very late \u2014 your brain won't perform well.", type: 'con' });
+  }
+
+  if (grade >= 90) {
+    reasons.push({ text: `Your grade is strong at ${grade}%. One assignment won't tank it.`, type: 'con' });
+  } else if (grade >= 70) {
+    reasons.push({ text: `Your grade is ${grade}%. Every assignment matters for keeping it up.`, type: 'pro' });
+  } else {
+    reasons.push({ text: `Your grade is ${grade}%. You really need these points.`, type: 'pro' });
+  }
+
+  if (tired <= 3) {
+    reasons.push({ text: "You're feeling pretty alert \u2014 you can produce quality work.", type: 'pro' });
+  } else if (tired <= 6) {
+    reasons.push({ text: "You're somewhat tired. Work quality might drop.", type: 'neutral' });
+  } else {
+    reasons.push({ text: "You're exhausted. Anything you write now will suffer.", type: 'con' });
+  }
+
+  if (due === 'tonight') {
+    reasons.push({ text: "It's due tonight \u2014 there's no tomorrow option.", type: 'pro' });
+  } else if (due === 'tomorrow-morning') {
+    reasons.push({ text: "Due tomorrow morning \u2014 tight, but you could wake up early.", type: 'pro' });
+  } else if (due === 'tomorrow-afternoon') {
+    reasons.push({ text: "Due tomorrow afternoon \u2014 you have time in the morning.", type: 'con' });
+  } else {
+    reasons.push({ text: "It's not due until later this week. Sleep on it.", type: 'con' });
+  }
+
+  return {
+    stayUp, confidence, reasons,
+    scores: { time: timeScore, grade: gradeScore, tired: tiredScore, due: dueScore },
+    weights
+  };
+}
+
+// ── Sensitivity Analysis ──
+const DUE_OPTIONS = ['tonight', 'tomorrow-morning', 'tomorrow-afternoon', 'later-this-week'];
+const DUE_SCORES = { 'tonight': 1.0, 'tomorrow-morning': 0.75, 'tomorrow-afternoon': 0.4, 'later-this-week': 0.1 };
+const WEIGHTS = { time: 0.2, grade: 0.2, tired: 0.25, due: 0.35 };
+const INPUT_COLORS = { time: '#00e5ff', grade: '#44dd88', tired: '#ffaa44', due: '#ff4488' };
+const INPUT_LABELS = { time: 'Time', grade: 'Grade', tired: 'Tiredness', due: 'Due Date' };
+
+function computeWeightedScore(timeVal, gradeVal, tiredVal, dueVal) {
+  const timeScore = Math.max(0, 1 - ((timeVal - 21) / 6));
+  const gradeScore = 1 - (gradeVal / 100) * 0.9;
+  const tiredScore = 1 - ((tiredVal - 1) / 9);
+  const dueScore = (typeof dueVal === 'string') ? DUE_SCORES[dueVal] : dueVal;
+  return timeScore * WEIGHTS.time +
+         gradeScore * WEIGHTS.grade +
+         tiredScore * WEIGHTS.tired +
+         dueScore * WEIGHTS.due;
+}
+
+function drawSensitivityChart() {
+  const cvs = document.getElementById('sensitivity-chart');
+  const c = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  const pad = { top: 20, right: 20, bottom: 36, left: 52 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  c.clearRect(0, 0, W, H);
+
+  // Current raw values
+  const curTime = parseFloat(timeSlider.value);
+  const curGrade = parseInt(gradeSlider.value);
+  const curTired = parseInt(tiredSlider.value);
+  const curDue = dueSelect.value;
+
+  // Axes
+  c.strokeStyle = '#2a2a4a';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(pad.left, pad.top);
+  c.lineTo(pad.left, pad.top + plotH);
+  c.lineTo(pad.left + plotW, pad.top + plotH);
+  c.stroke();
+
+  // Y-axis labels (0, 0.5, 1)
+  c.fillStyle = '#666';
+  c.font = '11px Segoe UI, sans-serif';
+  c.textAlign = 'right';
+  c.textBaseline = 'middle';
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+    const y = pad.top + plotH - (v * plotH);
+    c.fillText(v.toFixed(2), pad.left - 8, y);
+    // Grid line
+    c.strokeStyle = '#1a1a2e';
+    c.beginPath();
+    c.moveTo(pad.left, y);
+    c.lineTo(pad.left + plotW, y);
+    c.stroke();
+  });
+
+  // X-axis labels
+  c.textAlign = 'center';
+  c.textBaseline = 'top';
+  c.fillStyle = '#666';
+  c.fillText('0', pad.left, pad.top + plotH + 6);
+  c.fillText('Input Value (normalized)', pad.left + plotW / 2, pad.top + plotH + 20);
+  c.fillText('1', pad.left + plotW, pad.top + plotH + 6);
+
+  // Decision threshold line at 0.5
+  const threshY = pad.top + plotH - (0.5 * plotH);
+  c.setLineDash([6, 4]);
+  c.strokeStyle = '#aa66ff';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(pad.left, threshY);
+  c.lineTo(pad.left + plotW, threshY);
+  c.stroke();
+  c.setLineDash([]);
+
+  // Label threshold
+  c.fillStyle = '#aa66ff';
+  c.textAlign = 'left';
+  c.textBaseline = 'bottom';
+  c.font = '10px Segoe UI, sans-serif';
+  c.fillText('threshold', pad.left + 4, threshY - 3);
+
+  const STEPS = 50;
+
+  // Sweep configs: each defines how to sweep one input
+  const sweeps = [
+    {
+      key: 'time',
+      color: INPUT_COLORS.time,
+      // Normalized position of current value
+      curNorm: (curTime - 21) / 6,
+      getScore: (t) => computeWeightedScore(21 + t * 6, curGrade, curTired, curDue)
+    },
+    {
+      key: 'grade',
+      color: INPUT_COLORS.grade,
+      curNorm: curGrade / 100,
+      getScore: (t) => computeWeightedScore(curTime, t * 100, curTired, curDue)
+    },
+    {
+      key: 'tired',
+      color: INPUT_COLORS.tired,
+      curNorm: (curTired - 1) / 9,
+      getScore: (t) => computeWeightedScore(curTime, curGrade, 1 + t * 9, curDue)
+    },
+    {
+      key: 'due',
+      color: INPUT_COLORS.due,
+      curNorm: (() => {
+        const idx = DUE_OPTIONS.indexOf(curDue);
+        return idx / (DUE_OPTIONS.length - 1);
+      })(),
+      // Due is discrete: 4 points
+      discrete: true,
+      points: DUE_OPTIONS.map((opt, i) => {
+        const t = i / (DUE_OPTIONS.length - 1);
+        return { t, score: computeWeightedScore(curTime, curGrade, curTired, opt) };
+      }),
+      getScore: null
+    }
+  ];
+
+  sweeps.forEach(sw => {
+    c.strokeStyle = sw.color;
+    c.lineWidth = 2.5;
+    c.beginPath();
+
+    if (sw.discrete) {
+      // Plot discrete points with connecting lines
+      sw.points.forEach((pt, i) => {
+        const x = pad.left + pt.t * plotW;
+        const y = pad.top + plotH - (pt.score * plotH);
+        if (i === 0) c.moveTo(x, y);
+        else c.lineTo(x, y);
+      });
+      c.stroke();
+
+      // Draw point dots
+      sw.points.forEach(pt => {
+        const x = pad.left + pt.t * plotW;
+        const y = pad.top + plotH - (pt.score * plotH);
+        c.beginPath();
+        c.arc(x, y, 4, 0, Math.PI * 2);
+        c.fillStyle = sw.color;
+        c.fill();
+      });
+    } else {
+      // Continuous sweep
+      for (let i = 0; i <= STEPS; i++) {
+        const t = i / STEPS;
+        const score = sw.getScore(t);
+        const x = pad.left + t * plotW;
+        const y = pad.top + plotH - (score * plotH);
+        if (i === 0) c.moveTo(x, y);
+        else c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+
+    // Vertical marker at current value
+    const curX = pad.left + sw.curNorm * plotW;
+    const curScore = sw.discrete
+      ? sw.points.find((_, i) => i / (DUE_OPTIONS.length - 1) === sw.curNorm)?.score
+        ?? sw.points[DUE_OPTIONS.indexOf(curDue)].score
+      : sw.getScore(sw.curNorm);
+    const curY = pad.top + plotH - (curScore * plotH);
+
+    // Vertical dashed line
+    c.setLineDash([3, 3]);
+    c.strokeStyle = sw.color;
+    c.lineWidth = 1;
+    c.globalAlpha = 0.5;
+    c.beginPath();
+    c.moveTo(curX, pad.top + plotH);
+    c.lineTo(curX, curY);
+    c.stroke();
+    c.setLineDash([]);
+    c.globalAlpha = 1;
+
+    // Marker dot
+    c.beginPath();
+    c.arc(curX, curY, 6, 0, Math.PI * 2);
+    c.fillStyle = sw.color;
+    c.fill();
+    c.strokeStyle = '#fff';
+    c.lineWidth = 2;
+    c.stroke();
+  });
+}
+
+function drawInfluenceChart() {
+  const cvs = document.getElementById('influence-chart');
+  const c = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  const pad = { top: 10, right: 20, bottom: 10, left: 90 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  c.clearRect(0, 0, W, H);
+
+  const curTime = parseFloat(timeSlider.value);
+  const curGrade = parseInt(gradeSlider.value);
+  const curTired = parseInt(tiredSlider.value);
+  const curDue = dueSelect.value;
+
+  // Calculate influence: sweep each input, measure max - min of output
+  const influences = [
+    {
+      key: 'time',
+      calc: () => {
+        let min = 1, max = 0;
+        for (let i = 0; i <= 50; i++) {
+          const s = computeWeightedScore(21 + (i / 50) * 6, curGrade, curTired, curDue);
+          if (s < min) min = s;
+          if (s > max) max = s;
+        }
+        return max - min;
+      }
+    },
+    {
+      key: 'grade',
+      calc: () => {
+        let min = 1, max = 0;
+        for (let i = 0; i <= 50; i++) {
+          const s = computeWeightedScore(curTime, (i / 50) * 100, curTired, curDue);
+          if (s < min) min = s;
+          if (s > max) max = s;
+        }
+        return max - min;
+      }
+    },
+    {
+      key: 'tired',
+      calc: () => {
+        let min = 1, max = 0;
+        for (let i = 0; i <= 50; i++) {
+          const s = computeWeightedScore(curTime, curGrade, 1 + (i / 50) * 9, curDue);
+          if (s < min) min = s;
+          if (s > max) max = s;
+        }
+        return max - min;
+      }
+    },
+    {
+      key: 'due',
+      calc: () => {
+        const scores = DUE_OPTIONS.map(opt => computeWeightedScore(curTime, curGrade, curTired, opt));
+        return Math.max(...scores) - Math.min(...scores);
+      }
+    }
+  ];
+
+  const data = influences.map(inf => ({
+    key: inf.key,
+    influence: inf.calc()
+  })).sort((a, b) => b.influence - a.influence);
+
+  const maxInf = Math.max(...data.map(d => d.influence), 0.01);
+  const barH = Math.min(28, (plotH - (data.length - 1) * 6) / data.length);
+  const gap = 6;
+  const totalBarsH = data.length * barH + (data.length - 1) * gap;
+  const startY = pad.top + (plotH - totalBarsH) / 2;
+
+  data.forEach((d, i) => {
+    const y = startY + i * (barH + gap);
+    const barW = (d.influence / maxInf) * plotW;
+    const color = INPUT_COLORS[d.key];
+
+    // Bar fill
+    c.fillStyle = color;
+    c.globalAlpha = 0.3;
+    c.beginPath();
+    c.roundRect(pad.left, y, barW, barH, 4);
+    c.fill();
+    c.globalAlpha = 1;
+
+    // Bar outline
+    c.lineWidth = 1.5;
+    c.strokeStyle = color;
+    c.beginPath();
+    c.roundRect(pad.left, y, barW, barH, 4);
+    c.stroke();
+
+    // Label
+    c.fillStyle = '#bbb';
+    c.font = '12px Segoe UI, sans-serif';
+    c.textAlign = 'right';
+    c.textBaseline = 'middle';
+    c.fillText(INPUT_LABELS[d.key], pad.left - 8, y + barH / 2);
+
+    // Value
+    c.fillStyle = color;
+    c.textAlign = 'left';
+    c.font = 'bold 11px Segoe UI, sans-serif';
+    c.fillText((d.influence * 100).toFixed(0) + '%', pad.left + barW + 8, y + barH / 2);
+  });
+}
+
+// ── Fire the Neuron ──
+const fireBtn = document.getElementById('fire-btn');
+const resultPanel = document.getElementById('result-panel');
+const resultVerdict = document.getElementById('result-verdict');
+const resultConfidence = document.getElementById('result-confidence');
+const resultReasoning = document.getElementById('result-reasoning');
+const confidenceBar = document.getElementById('confidence-bar');
+const weightBadges = document.getElementById('weight-badges');
+
+const soma = document.getElementById('soma');
+const axon = document.getElementById('axon');
+const outputNode = document.getElementById('output-node');
+const inputNodes = [
+  document.getElementById('node-time'),
+  document.getElementById('node-grade'),
+  document.getElementById('node-tired'),
+  document.getElementById('node-due')
+];
+const dendrites = [
+  document.getElementById('dend-0'),
+  document.getElementById('dend-1'),
+  document.getElementById('dend-2'),
+  document.getElementById('dend-3')
+];
+
+fireBtn.addEventListener('click', () => {
+  // Reset
+  resultPanel.classList.remove('visible', 'stay-up', 'go-sleep');
+  resultVerdict.classList.remove('stay-up', 'go-sleep');
+  confidenceBar.classList.remove('stay-up', 'go-sleep');
+  soma.classList.remove('deciding', 'stay-up', 'go-sleep');
+  axon.classList.remove('firing');
+  outputNode.classList.remove('stay-up', 'go-sleep');
+  outputNode.innerHTML = '&#10067;';
+  inputNodes.forEach(n => n.classList.remove('active'));
+  dendrites.forEach(d => d.classList.remove('firing'));
+  confidenceBar.style.width = '0%';
+
+  // Animate: light up inputs one by one
+  inputNodes.forEach((node, i) => {
+    setTimeout(() => {
+      node.classList.add('active');
+      dendrites[i].classList.add('firing');
+    }, i * 250);
+  });
+
+  // Soma processing
+  setTimeout(() => {
+    soma.classList.add('deciding');
+  }, 1100);
+
+  // Fire axon and show result
+  setTimeout(() => {
+    soma.classList.remove('deciding');
+    const result = computeDecision();
+    const cls = result.stayUp ? 'stay-up' : 'go-sleep';
+
+    soma.classList.add(cls);
+    axon.classList.add('firing');
+
+    setTimeout(() => {
+      outputNode.classList.add(cls);
+      outputNode.innerHTML = result.stayUp ? '&#128293;' : '&#128164;';
+
+      resultPanel.classList.add('visible', cls);
+      resultVerdict.classList.add(cls);
+      resultVerdict.textContent = result.stayUp
+        ? '\uD83D\uDD25 Stay Up and Grind'
+        : '\uD83D\uDE34 Go to Sleep';
+
+      confidenceBar.classList.add(cls);
+      setTimeout(() => {
+        confidenceBar.style.width = result.confidence + '%';
+      }, 100);
+
+      resultConfidence.innerHTML = `Confidence: <span>${result.confidence}%</span>`;
+
+      resultReasoning.innerHTML = '';
+      result.reasons.forEach(r => {
+        const li = document.createElement('li');
+        li.classList.add(r.type);
+        li.textContent = r.text;
+        resultReasoning.appendChild(li);
+      });
+
+      const labels = { time: 'Time', grade: 'Grade', tired: 'Tiredness', due: 'Due Date' };
+      weightBadges.innerHTML = '';
+      for (const [key, w] of Object.entries(result.weights)) {
+        const badge = document.createElement('span');
+        badge.className = 'weight-badge';
+        const pct = Math.round(result.scores[key] * 100);
+        badge.textContent = `${labels[key]}: ${pct}% signal`;
+        badge.style.borderColor =
+          pct >= 60 ? '#ff4488' :
+          pct >= 40 ? '#888' : '#00e5ff';
+        weightBadges.appendChild(badge);
+      }
+
+      // Draw sensitivity charts
+      drawSensitivityChart();
+      drawInfluenceChart();
+    }, 300);
+  }, 2000);
+});
+</script>
+</body>
+</html>
