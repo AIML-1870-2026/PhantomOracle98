@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB Iris Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a10; --panel: #12121a;
+    --border: rgba(255,255,255,0.07); --text: #e8e4dc;
+    --dim: rgba(232,228,220,0.4);
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding: 2rem 1rem 3rem; overflow-x: hidden; position: relative;
+  }
+  #ambient-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; transition: background 0.5s ease; }
+
+  .title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.4rem, 3vw, 2.2rem); font-weight: 300;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 2.5rem;
+    position: relative; z-index: 1; text-align: center;
+  }
+  .title span { font-style: italic; color: var(--text); }
+
+  .top-layout {
+    display: flex; align-items: center; gap: 4rem;
+    position: relative; z-index: 1; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 3rem;
+  }
+
+  /* ===== EYE ===== */
+  .eye-wrap {
+    position: relative; width: 300px; height: 300px; flex-shrink: 0;
+    border-radius: 50%; overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.7);
+  }
+  .sclera-bg {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(ellipse 85% 85% at 48% 46%, #f6f1e9 0%, #ddd8cc 55%, #aaa49a 100%);
+    box-shadow: inset 0 6px 28px rgba(0,0,0,0.3), inset 0 -4px 14px rgba(0,0,0,0.2);
+  }
+  .iris-mover {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2; will-change: transform;
+  }
+  .iris-canvas {
+    width: 230px; height: 230px;
+    filter: drop-shadow(0 3px 14px rgba(0,0,0,0.65));
+  }
+  .corneal-shine {
+    position: absolute; top: 18%; left: 18%; width: 64%; height: 64%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse 50% 40% at 34% 28%, rgba(255,255,255,0.18) 0%, transparent 65%);
+    z-index: 6; pointer-events: none;
+  }
+
+  /* ===== PANEL ===== */
+  .panel { width: 280px; display: flex; flex-direction: column; gap: 1.6rem; }
+  .color-preview {
+    width: 100%; height: 60px; border-radius: 4px;
+    border: 1px solid var(--border); position: relative;
+    overflow: hidden; transition: background 0.15s ease;
+  }
+  .color-preview::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  }
+  .hex-label {
+    position: absolute; bottom: 7px; right: 10px;
+    font-size: 0.65rem; letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.6); mix-blend-mode: difference; z-index: 1;
+  }
+  .sliders { display: flex; flex-direction: column; gap: 1.3rem; }
+  .slider-row { display: flex; flex-direction: column; gap: 0.5rem; }
+  .slider-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-label { font-size: 0.6rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); }
+  .slider-value { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; min-width: 2.5rem; text-align: right; }
+  .slider-r .slider-value { color: #ff6b6b; }
+  .slider-g .slider-value { color: #6bffb8; }
+  .slider-b .slider-value { color: #6baeff; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; border-radius: 2px; outline: none; cursor: pointer; }
+  .slider-r input[type=range] { background: linear-gradient(to right, #1a0505, #ff2020); }
+  .slider-g input[type=range] { background: linear-gradient(to right, #051a0a, #20ff80); }
+  .slider-b input[type=range] { background: linear-gradient(to right, #05051a, #2060ff); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 2px solid var(--bg); box-shadow: 0 0 8px rgba(255,255,255,0.3); transition: transform 0.15s ease; }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+  .rgb-display { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .rgb-chip { padding: 0.5rem; border-radius: 3px; text-align: center; font-size: 0.6rem; letter-spacing: 0.1em; border: 1px solid var(--border); }
+  .rgb-chip.r { background: rgba(255,40,40,0.12); color: #ff8888; }
+  .rgb-chip.g { background: rgba(40,255,120,0.12); color: #88ffbb; }
+  .rgb-chip.b { background: rgba(40,100,255,0.12); color: #88aaff; }
+
+  /* ===== CVD SIMULATOR ===== */
+  .cvd-section { position: relative; z-index: 1; width: 100%; max-width: 780px; }
+  .cvd-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 0.85rem; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 1.2rem; text-align: center;
+  }
+  .cvd-title span { font-style: italic; color: var(--text); }
+  .cvd-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  @media (max-width: 640px) {
+    .cvd-grid { grid-template-columns: repeat(2, 1fr); }
+    .top-layout { gap: 2rem; }
+    .eye-wrap { width: 240px; height: 240px; }
+    .iris-canvas { width: 185px; height: 185px; }
+  }
+  .cvd-card {
+    border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden; background: var(--panel);
+    transition: border-color 0.25s, transform 0.2s;
+  }
+  .cvd-card:hover { border-color: rgba(255,255,255,0.16); transform: translateY(-2px); }
+  .cvd-swatch { height: 76px; position: relative; transition: background 0.2s ease; }
+  .cvd-swatch::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, transparent 50%);
+  }
+  .cvd-info { padding: 0.75rem 0.85rem 0.9rem; }
+  .cvd-name { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text); margin-bottom: 0.25rem; }
+  .cvd-type { font-size: 0.52rem; letter-spacing: 0.1em; color: rgba(232,228,220,0.25); margin-bottom: 0.3rem; font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 0.75rem; }
+  .cvd-desc { font-size: 0.5rem; letter-spacing: 0.04em; color: rgba(232,228,220,0.3); line-height: 1.5; margin-bottom: 0.55rem; }
+  .cvd-hex { font-size: 0.62rem; letter-spacing: 0.12em; color: rgba(232,228,220,0.45); }
+  .cvd-bar { height: 3px; margin-top: 0.55rem; border-radius: 2px; display: flex; overflow: hidden; gap: 1px; }
+  .cvd-bar-r { background: #ff4444; }
+  .cvd-bar-g { background: #44ff88; }
+  .cvd-bar-b { background: #4488ff; }
+
+  .divider {
+    width: 100%; max-width: 780px; height: 1px;
+    background: var(--border); margin: 0 auto 2.5rem;
+    position: relative; z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div id="ambient-bg"></div>
+<div class="title">RGB <span>Iris</span> Explorer</div>
+
+<div class="top-layout">
+  <!-- EYE -->
+  <div class="eye-wrap" id="eyeWrap">
+    <div class="sclera-bg"></div>
+    <div class="iris-mover" id="irisMover">
+      <svg class="iris-canvas" id="iris" viewBox="-105 -105 210 210" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="pupilGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#000"/>
+            <stop offset="80%" stop-color="#060606"/>
+            <stop offset="100%" stop-color="#111"/>
+          </radialGradient>
+          <clipPath id="irisClip"><circle cx="0" cy="0" r="103"/></clipPath>
+        </defs>
+        <g clip-path="url(#irisClip)">
+          <g id="petals-container"></g>
+        </g>
+        <g id="pupil-group"></g>
+      </svg>
+    </div>
+    <div class="corneal-shine"></div>
+  </div>
+
+  <!-- PANEL -->
+  <div class="panel">
+    <div class="color-preview" id="colorPreview">
+      <span class="hex-label" id="hexLabel">#7850C8</span>
+    </div>
+    <div class="sliders">
+      <div class="slider-row slider-r">
+        <div class="slider-header">
+          <span class="slider-label">Red Channel</span>
+          <span class="slider-value" id="rVal">120</span>
+        </div>
+        <input type="range" id="rSlider" min="0" max="255" value="120">
+      </div>
+      <div class="slider-row slider-g">
+        <div class="slider-header">
+          <span class="slider-label">Green Channel</span>
+          <span class="slider-value" id="gVal">80</span>
+        </div>
+        <input type="range" id="gSlider" min="0" max="255" value="80">
+      </div>
+      <div class="slider-row slider-b">
+        <div class="slider-header">
+          <span class="slider-label">Blue Channel</span>
+          <span class="slider-value" id="bVal">200</span>
+        </div>
+        <input type="range" id="bSlider" min="0" max="255" value="200">
+      </div>
+    </div>
+    <div class="rgb-display">
+      <div class="rgb-chip r" id="chipR">R · 120</div>
+      <div class="rgb-chip g" id="chipG">G · 80</div>
+      <div class="rgb-chip b" id="chipB">B · 200</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- COLOR BLINDNESS -->
+<div class="cvd-section">
+  <div class="cvd-title"><span>Color Vision</span> Deficiency Simulator</div>
+  <div class="cvd-grid">
+    <div class="cvd-card">
+      <div class="cvd-swatch" id="sw-normal"></div>
+      <div class="cvd-info">
+        <div class="cvd-name">Normal Vision</div>
+        <div class="cvd-type">Trichromacy</div>
+        <div class="cvd-desc">Full L, M & S cone function</div>
+        <div class="cvd-hex" id="hx-normal">#7850C8</div>
+        <div class="cvd-bar"><div class="cvd-bar-r" id="br-normal"></div><div class="cvd-bar-g" id="bg-normal"></div><div class="cvd-bar-b" id="bb-normal"></div></div>
+      </div>
+    </div>
+    <div class="cvd-card">
+      <div class="cvd-swatch" id="sw-protan"></div>
+      <div class="cvd-info">
+        <div class="cvd-name">Protanopia</div>
+        <div class="cvd-type">Red-blind</div>
+        <div class="cvd-desc">Absent L-cone — loss of long-wavelength sensitivity</div>
+        <div class="cvd-hex" id="hx-protan">#7850C8</div>
+        <div class="cvd-bar"><div class="cvd-bar-r" id="br-protan"></div><div class="cvd-bar-g" id="bg-protan"></div><div class="cvd-bar-b" id="bb-protan"></div></div>
+      </div>
+    </div>
+    <div class="cvd-card">
+      <div class="cvd-swatch" id="sw-deutan"></div>
+      <div class="cvd-info">
+        <div class="cvd-name">Deuteranopia</div>
+        <div class="cvd-type">Green-blind</div>
+        <div class="cvd-desc">Absent M-cone — loss of medium-wavelength sensitivity</div>
+        <div class="cvd-hex" id="hx-deutan">#7850C8</div>
+        <div class="cvd-bar"><div class="cvd-bar-r" id="br-deutan"></div><div class="cvd-bar-g" id="bg-deutan"></div><div class="cvd-bar-b" id="bb-deutan"></div></div>
+      </div>
+    </div>
+    <div class="cvd-card">
+      <div class="cvd-swatch" id="sw-tritan"></div>
+      <div class="cvd-info">
+        <div class="cvd-name">Tritanopia</div>
+        <div class="cvd-type">Blue-blind</div>
+        <div class="cvd-desc">Absent S-cone — loss of short-wavelength sensitivity</div>
+        <div class="cvd-hex" id="hx-tritan">#7850C8</div>
+        <div class="cvd-bar"><div class="cvd-bar-r" id="br-tritan"></div><div class="cvd-bar-g" id="bg-tritan"></div><div class="cvd-bar-b" id="bb-tritan"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// CVD SIMULATION (Brettel / Viénot method)
+// ==========================================
+function lin(c) {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+function delin(v) {
+  const c = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1/2.4) - 0.055;
+  return Math.round(Math.max(0, Math.min(1, c)) * 255);
+}
+function rgbToLms(r, g, b) {
+  return [
+    0.31399022*r + 0.63951294*g + 0.04649755*b,
+    0.15537241*r + 0.75789446*g + 0.08670142*b,
+    0.01775239*r + 0.10944209*g + 0.87256922*b
+  ];
+}
+function lmsToRgb(l, m, s) {
+  return [
+     5.47221206*l - 4.64196010*m + 0.16960699*s,
+    -1.12524190*l + 2.29317094*m - 0.16789520*s,
+     0.02980165*l - 0.19318073*m + 1.16364789*s
+  ];
+}
+function cvdSim(r, g, b, type) {
+  const rl = lin(r), gl = lin(g), bl = lin(b);
+  let [l, m, s] = rgbToLms(rl, gl, bl);
+  if (type === 'protan')  l = 2.02344*m - 2.52581*s;
+  if (type === 'deutan')  m = 0.49421*l + 1.24827*s;
+  if (type === 'tritan')  s = -0.01224*l + 0.07203*m;
+  const [ro, go, bo] = lmsToRgb(l, m, s);
+  return [delin(ro), delin(go), delin(bo)];
+}
+
+// ==========================================
+// IRIS DRAWING
+// ==========================================
+const NUM_PETALS = 12;
+const OUTER_R = 98;
+const INNER_R = 22;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+let r = 120, g = 80, b = 200;
+
+function toHex(v) { return Math.round(v).toString(16).padStart(2,'0').toUpperCase(); }
+function rgbHex(r, g, b) { return `#${toHex(r)}${toHex(g)}${toHex(b)}`; }
+function mk(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+function rot(x, y, cos, sin) { return [x*cos - y*sin, x*sin + y*cos]; }
+
+function petalPath(angle, length, width) {
+  const rad = angle * Math.PI / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  const tip   = rot(0, -(INNER_R + length), c, s);
+  const cl1   = rot(-width*0.65, -(INNER_R + length*0.87), c, s);
+  const cr1   = rot( width*0.65, -(INNER_R + length*0.87), c, s);
+  const left  = rot(-width, -(INNER_R + length*0.45), c, s);
+  const right = rot( width, -(INNER_R + length*0.45), c, s);
+  const bl    = rot(-width*0.32, -INNER_R*0.92, c, s);
+  const br    = rot( width*0.32, -INNER_R*0.92, c, s);
+  const f = v => v.map(n => n.toFixed(2));
+  return `M ${f(bl)} C ${f(left)},${f(cl1)},${f(tip)} C ${f(cr1)},${f(right)},${f(br)} Z`;
+}
+
+function buildIris() {
+  const pc = document.getElementById('petals-container');
+  const pg = document.getElementById('pupil-group');
+  pc.innerHTML = ''; pg.innerHTML = '';
+
+  const rn = r/255, gn = g/255, bn = b/255;
+  const ac = `rgb(${r},${g},${b})`;
+
+  pc.appendChild(mk('circle', { r: OUTER_R+5, fill:'none', stroke:ac, 'stroke-width':'1', 'stroke-opacity':'0.1' }));
+
+  const layers = [
+    { cr:r, cg:18, cb:18, norm:rn, off:0 },
+    { cr:18, cg:g, cb:18, norm:gn, off: 360/NUM_PETALS/3 },
+    { cr:18, cg:18, cb:b, norm:bn, off: 2*360/NUM_PETALS/3 },
+  ];
+  layers.forEach(layer => {
+    const grp = mk('g', { opacity: 0.32 + layer.norm * 0.68 });
+    const col = `rgb(${layer.cr},${layer.cg},${layer.cb})`;
+    for (let i = 0; i < NUM_PETALS; i++) {
+      const angle = (360/NUM_PETALS)*i + layer.off;
+      const len = 14 + layer.norm * (OUTER_R - INNER_R - 16);
+      const wid = 6 + layer.norm * 15;
+      grp.appendChild(mk('path', {
+        d: petalPath(angle, len, wid),
+        fill: col, 'fill-opacity': 0.25 + layer.norm*0.55,
+        stroke: col, 'stroke-width':'0.4', 'stroke-opacity':'0.3'
+      }));
+    }
+    pc.appendChild(grp);
+  });
+
+  // Stroma lines
+  for (let i=0; i<36; i++) {
+    const rad = i/36 * Math.PI * 2;
+    const ll = 5 + ((rn+gn+bn)/3)*13;
+    pc.appendChild(mk('line', {
+      x1: Math.cos(rad)*(INNER_R+1), y1: Math.sin(rad)*(INNER_R+1),
+      x2: Math.cos(rad)*(INNER_R+ll), y2: Math.sin(rad)*(INNER_R+ll),
+      stroke: ac, 'stroke-width':'0.45', 'stroke-opacity':'0.18'
+    }));
+  }
+
+  pg.appendChild(mk('circle', { r: INNER_R+1.5, fill:'none', stroke:ac, 'stroke-width':'0.8', 'stroke-opacity':'0.22' }));
+  pg.appendChild(mk('circle', { r: INNER_R, fill:'url(#pupilGrad)' }));
+  pg.appendChild(mk('ellipse', { cx:'-5', cy:'-6', rx:'4', ry:'2.5', fill:'rgba(255,255,255,0.13)', transform:'rotate(-22,-5,-6)' }));
+}
+
+// ==========================================
+// EYE MOVEMENT
+// ==========================================
+const mover = document.getElementById('irisMover');
+const MAX_X = 22, MAX_Y = 22;
+let eyeX = 0, eyeY = 0, tgtX = 0, tgtY = 0;
+let rafId, saccadeTimer;
+
+function schedSaccade() {
+  clearTimeout(saccadeTimer);
+  saccadeTimer = setTimeout(doSaccade, 1800 + Math.random() * 4200);
+}
+function doSaccade() {
+  if (Math.random() < 0.28) { tgtX = 0; tgtY = 0; }
+  else {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    tgtX = side * (MAX_X * (0.3 + Math.random() * 0.7));
+    tgtY = (Math.random()*2-1) * MAX_Y;
+  }
+  animEye();
+  schedSaccade();
+}
+function animEye() {
+  cancelAnimationFrame(rafId);
+  const spd = 0.1 + Math.random()*0.1;
+  function step() {
+    eyeX += (tgtX - eyeX) * spd;
+    eyeY += (tgtY - eyeY) * spd;
+    mover.style.transform = `translate(${eyeX.toFixed(2)}px, ${eyeY.toFixed(2)}px)`;
+    if (Math.abs(eyeX-tgtX) > 0.2 || Math.abs(eyeY-tgtY) > 0.2) rafId = requestAnimationFrame(step);
+  }
+  step();
+}
+
+// ==========================================
+// UI UPDATE
+// ==========================================
+function updateCVD() {
+  const variants = [
+    { id:'normal', rgb:[r,g,b] },
+    { id:'protan',  rgb: cvdSim(r,g,b,'protan') },
+    { id:'deutan',  rgb: cvdSim(r,g,b,'deutan') },
+    { id:'tritan',  rgb: cvdSim(r,g,b,'tritan') },
+  ];
+  variants.forEach(({ id, rgb:[cr,cg,cb] }) => {
+    const hex = rgbHex(cr,cg,cb);
+    document.getElementById(`sw-${id}`).style.background = hex;
+    document.getElementById(`hx-${id}`).textContent = hex;
+    document.getElementById(`br-${id}`).style.flex = cr;
+    document.getElementById(`bg-${id}`).style.flex = cg;
+    document.getElementById(`bb-${id}`).style.flex = cb;
+  });
+}
+
+function updateUI() {
+  const hex = rgbHex(r,g,b);
+  document.getElementById('colorPreview').style.background = hex;
+  document.getElementById('hexLabel').textContent = hex;
+  document.getElementById('rVal').textContent = r;
+  document.getElementById('gVal').textContent = g;
+  document.getElementById('bVal').textContent = b;
+  document.getElementById('chipR').textContent = `R · ${r}`;
+  document.getElementById('chipG').textContent = `G · ${g}`;
+  document.getElementById('chipB').textContent = `B · ${b}`;
+  document.getElementById('ambient-bg').style.background =
+    `radial-gradient(ellipse 65% 55% at 50% 40%, rgba(${r},${g},${b},0.07) 0%, transparent 70%)`;
+  updateCVD();
+}
+
+function onSlider() {
+  r = parseInt(document.getElementById('rSlider').value);
+  g = parseInt(document.getElementById('gSlider').value);
+  b = parseInt(document.getElementById('bSlider').value);
+  buildIris();
+  updateUI();
+}
+
+['rSlider','gSlider','bSlider'].forEach(id => {
+  document.getElementById(id).addEventListener('input', onSlider);
+});
+
+buildIris();
+updateUI();
+schedSaccade();
+</script>
+</body>
+</html>
