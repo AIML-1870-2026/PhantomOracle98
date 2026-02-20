@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Readable â Color & Contrast Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --surface: rgba(255,255,255,0.82);
+    --surface2: rgba(255,255,255,0.65);
+    --border: rgba(180,210,170,0.55);
+    --accent: #2d6a2d;
+    --accent-light: #d4edda;
+    --accent2: #1a7a5e;
+    --text: #1c2b1c;
+    --text-muted: #4a6741;
+    --radius: 14px;
+    --shadow: 0 2px 8px rgba(30,60,20,0.10), 0 6px 24px rgba(30,60,20,0.08);
+  }
+
+  /* ── Nature background ── */
+  body {
+    min-height: 100vh;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    padding: 32px 24px 60px;
+    position: relative;
+    overflow-x: hidden;
+    background: linear-gradient(160deg, #c8e6c0 0%, #a8d5a2 30%, #7ec8a0 60%, #b8dfc8 100%);
+  }
+
+  /* Soft bokeh blobs */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 15% 20%, rgba(144,210,120,0.45) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 10%, rgba(100,190,160,0.35) 0%, transparent 65%),
+      radial-gradient(ellipse 70% 50% at 50% 85%, rgba(120,200,140,0.40) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 90% 60%, rgba(160,220,130,0.30) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SVG leaf layer */
+  #leaf-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.55;
+  }
+
+  /* Floating leaf keyframes */
+  @keyframes sway1 { 0%,100%{transform:translate(0,0) rotate(0deg)} 33%{transform:translate(6px,-8px) rotate(4deg)} 66%{transform:translate(-4px,4px) rotate(-3deg)} }
+  @keyframes sway2 { 0%,100%{transform:translate(0,0) rotate(0deg)} 33%{transform:translate(-8px,5px) rotate(-5deg)} 66%{transform:translate(5px,-6px) rotate(3deg)} }
+  @keyframes sway3 { 0%,100%{transform:translate(0,0) rotate(0deg)} 50%{transform:translate(4px,10px) rotate(6deg)} }
+  @keyframes drift { 0%{transform:translateY(0) rotate(0deg) scale(1)} 100%{transform:translateY(110vh) rotate(720deg) scale(0.6)} }
+
+  .leaf { animation: sway1 6s ease-in-out infinite; transform-origin: center; }
+  .leaf:nth-child(2n) { animation-name: sway2; animation-duration: 8s; }
+  .leaf:nth-child(3n) { animation-name: sway3; animation-duration: 10s; }
+
+  .falling-leaf {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2;
+    animation: drift linear forwards;
+    font-size: 1.4rem;
+    opacity: 0.7;
+  }
+
+  /* Content sits above background layers */
+  header, .preset-bar, .layout { position: relative; z-index: 10; }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 6px;
+    color: #1a3d1a;
+    text-shadow: 0 2px 12px rgba(255,255,255,0.6);
+  }
+
+  header p {
+    font-size: 0.72rem;
+    color: #3a5c38;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 4px rgba(255,255,255,0.5);
+  }
+
+  /* ── Glass card mixin ── */
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* ── Preset bar ── */
+  .preset-bar {
+    max-width: 1100px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .preset-bar label {
+    font-size: 0.63rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .preset-select {
+    flex: 1;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    padding: 7px 32px 7px 11px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a6741' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+  }
+
+  .preset-select:focus { border-color: var(--accent); background: rgba(255,255,255,0.9); }
+
+  /* ── Random button ── */
+  .random-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(45,106,45,0.3);
+    letter-spacing: 0.04em;
+  }
+
+  .random-btn:hover {
+    background: #245924;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(45,106,45,0.4);
+  }
+
+  .random-btn:active { transform: translateY(0); }
+
+  .random-btn .dice {
+    display: inline-block;
+    font-size: 1rem;
+    transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .random-btn.spinning .dice {
+    transform: rotate(540deg);
+  }
+
+  .preset-tag {
+    font-size: 0.58rem;
+    padding: 3px 10px;
+    border-radius: 99px;
+    white-space: nowrap;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: none;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+  }
+  .preset-tag.visible { display: inline-block; }
+  .tag-high    { background: rgba(209,250,229,0.9); color: #065f46; border: 1px solid #a7f3d0; }
+  .tag-low     { background: rgba(254,243,199,0.9); color: #92400e; border: 1px solid #fde68a; }
+  .tag-website { background: rgba(219,234,254,0.9); color: #1e40af; border: 1px solid #bfdbfe; }
+  .tag-fail    { background: rgba(254,226,226,0.9); color: #991b1b; border: 1px solid #fecaca; }
+  .tag-random  { background: rgba(220,210,255,0.9); color: #5b21b6; border: 1px solid #c4b5fd; }
+
+  /* ── Main layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 355px 1fr;
+    gap: 18px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .card {
+    padding: 17px;
+  }
+
+  .card-title {
+    font-size: 0.61rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(100,160,90,0.3);
+  }
+
+  .color-preview-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.15);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.6);
+  }
+
+  .rgb-row {
+    display: grid;
+    grid-template-columns: 16px 1fr 52px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+
+  .rgb-row:last-of-type { margin-bottom: 0; }
+
+  .channel-label {
+    font-size: 0.67rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(100,160,90,0.25);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+    cursor: grab;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
+  .slider-r::-webkit-slider-thumb { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
+  .slider-g::-webkit-slider-thumb { background: #16a34a; box-shadow: 0 0 0 3px #dcfce7; }
+  .slider-b::-webkit-slider-thumb { background: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
+
+  .num-input {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.74rem;
+    text-align: center;
+    padding: 4px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .num-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.95); }
+
+  .size-row {
+    display: grid;
+    grid-template-columns: 1fr 52px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* ── Right panel ── */
+  .right-panel {
+    display: grid;
+    grid-template-columns: 1fr 185px;
+    gap: 15px;
+    align-items: start;
+  }
+
+  .display-area {
+    padding: 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .display-label {
+    font-size: 0.61rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  #text-preview {
+    border-radius: 10px;
+    padding: 28px 24px;
+    min-height: 155px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.25s, color 0.25s, font-size 0.1s;
+    font-family: 'Fraunces', serif;
+    text-align: center;
+    line-height: 1.5;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  /* ── Stats ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .stat-card {
+    padding: 13px 15px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 0.57rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', serif;
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .stat-value.lum { font-size: 1.15rem; color: var(--accent2); }
+
+  .wcag-badge {
+    display: inline-block;
+    font-size: 0.57rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 99px;
+    margin-top: 5px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .badge-aaa  { background: rgba(209,250,229,0.9); color: #065f46; border: 1px solid #a7f3d0; }
+  .badge-aa   { background: rgba(219,234,254,0.9); color: #1e40af; border: 1px solid #bfdbfe; }
+  .badge-aal  { background: rgba(254,243,199,0.9); color: #92400e; border: 1px solid #fde68a; }
+  .badge-fail { background: rgba(254,226,226,0.9); color: #991b1b; border: 1px solid #fecaca; }
+
+  /* ── Swatches ── */
+  .swatch-row { margin-top: 11px; }
+
+  .swatch-label {
+    font-size: 0.57rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .swatch-list { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  .swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    border: 1px solid rgba(0,0,0,0.12);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+
+  .swatch:hover {
+    transform: scale(1.22);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  }
+
+  /* ── Flash animation for random ── */
+  @keyframes flashIn {
+    0%   { opacity: 0; transform: scale(0.96); }
+    60%  { opacity: 1; transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .flash { animation: flashIn 0.35s ease-out; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .right-panel { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG Leaf layer -->
+<svg id="leaf-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+  <!-- Large background leaves -->
+  <g class="leaf" style="animation-delay:0s">
+    <ellipse cx="80" cy="120" rx="38" ry="18" fill="#3d8b3d" opacity="0.35" transform="rotate(-30 80 120)"/>
+    <line x1="80" y1="102" x2="80" y2="138" stroke="#2d6a2d" stroke-width="1.5" opacity="0.4"/>
+  </g>
+  <g class="leaf" style="animation-delay:-2s">
+    <ellipse cx="1360" cy="200" rx="50" ry="22" fill="#2e7d32" opacity="0.3" transform="rotate(20 1360 200)"/>
+    <line x1="1360" y1="178" x2="1360" y2="222" stroke="#1b5e20" stroke-width="1.5" opacity="0.35"/>
+  </g>
+  <g class="leaf" style="animation-delay:-4s">
+    <ellipse cx="200" cy="750" rx="45" ry="20" fill="#388e3c" opacity="0.28" transform="rotate(15 200 750)"/>
+  </g>
+  <g class="leaf" style="animation-delay:-1s">
+    <ellipse cx="1250" cy="700" rx="35" ry="16" fill="#43a047" opacity="0.32" transform="rotate(-20 1250 700)"/>
+  </g>
+  <g class="leaf" style="animation-delay:-3s">
+    <ellipse cx="700" cy="50" rx="42" ry="19" fill="#2e7d32" opacity="0.25" transform="rotate(5 700 50)"/>
+  </g>
+  <!-- Fern-like clusters -->
+  <g class="leaf" style="animation-delay:-1.5s" opacity="0.3">
+    <ellipse cx="30" cy="400" rx="28" ry="10" fill="#4caf50" transform="rotate(-40 30 400)"/>
+    <ellipse cx="50" cy="420" rx="22" ry="9" fill="#4caf50" transform="rotate(-20 50 420)"/>
+    <ellipse cx="20" cy="440" rx="25" ry="9" fill="#4caf50" transform="rotate(-55 20 440)"/>
+  </g>
+  <g class="leaf" style="animation-delay:-5s" opacity="0.28">
+    <ellipse cx="1420" cy="500" rx="30" ry="11" fill="#66bb6a" transform="rotate(35 1420 500)"/>
+    <ellipse cx="1400" cy="520" rx="24" ry="10" fill="#66bb6a" transform="rotate(15 1400 520)"/>
+    <ellipse cx="1430" cy="540" rx="26" ry="10" fill="#66bb6a" transform="rotate(50 1430 540)"/>
+  </g>
+  <!-- Scattered small leaves -->
+  <ellipse class="leaf" cx="400" cy="880" rx="20" ry="9" fill="#81c784" opacity="0.22" transform="rotate(10 400 880)" style="animation-delay:-2.5s"/>
+  <ellipse class="leaf" cx="900" cy="870" rx="18" ry="8" fill="#a5d6a7" opacity="0.2" transform="rotate(-15 900 870)" style="animation-delay:-0.5s"/>
+  <ellipse class="leaf" cx="600" cy="20"  rx="22" ry="9" fill="#4caf50" opacity="0.2" transform="rotate(25 600 20)" style="animation-delay:-3.5s"/>
+  <ellipse class="leaf" cx="1100" cy="50" rx="19" ry="8" fill="#66bb6a" opacity="0.18" transform="rotate(-10 1100 50)" style="animation-delay:-1s"/>
+</svg>
+
+<header>
+  <h1>Readable</h1>
+  <p>Color &amp; Contrast Explorer</p>
+</header>
+
+<!-- Preset + Random Bar -->
+<div class="preset-bar glass">
+  <label for="combo-select">Load Preset</label>
+  <select class="preset-select" id="combo-select">
+    <option value="">— Choose a color combination —</option>
+    <optgroup label="⬆ High Contrast">
+      <option value="hc1">Black on White (21:1)</option>
+      <option value="hc2">White on Black (21:1)</option>
+      <option value="hc3">Navy on White</option>
+      <option value="hc4">White on Dark Navy</option>
+      <option value="hc5">Black on Yellow</option>
+    </optgroup>
+    <optgroup label="⬇ Low Contrast">
+      <option value="lc1">Medium Gray on White</option>
+      <option value="lc2">Light Gray on White</option>
+      <option value="lc3">Medium Blue on Dark Blue</option>
+      <option value="lc4">Dark Gray on Gray</option>
+    </optgroup>
+    <optgroup label="🌐 Common Website Schemes">
+      <option value="ws1">GitHub — Dark text on white</option>
+      <option value="ws2">Twitter / X — White on dark</option>
+      <option value="ws3">Wikipedia — Black on white</option>
+      <option value="ws4">Google — Dark gray on white</option>
+      <option value="ws5">Slack — White on aubergine</option>
+      <option value="ws6">Spotify — Green on near-black</option>
+    </optgroup>
+    <optgroup label="⚠ Problematic — WCAG Fail">
+      <option value="pf1">Red on Green (colorblind trap)</option>
+      <option value="pf2">Yellow on White</option>
+      <option value="pf3">Light Blue on White</option>
+      <option value="pf4">Gray placeholder text on white</option>
+      <option value="pf5">Orange on Yellow</option>
+      <option value="pf6">Pink on White</option>
+    </optgroup>
+  </select>
+
+  <button class="random-btn" id="random-btn">
+    <span class="dice">🎲</span> Randomize
+  </button>
+
+  <span class="preset-tag" id="combo-tag"></span>
+</div>
+
+<div class="layout">
+  <!-- Left Controls -->
+  <div class="controls-panel">
+
+    <div class="card glass">
+      <div class="card-title">
+        <span class="color-preview-dot" id="bg-dot"></span>
+        Background Color
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">R</span>
+        <input type="range" class="slider-r" id="bg-r" min="0" max="255" value="255">
+        <input type="number" class="num-input" id="bg-r-num" min="0" max="255" value="255">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">G</span>
+        <input type="range" class="slider-g" id="bg-g" min="0" max="255" value="255">
+        <input type="number" class="num-input" id="bg-g-num" min="0" max="255" value="255">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">B</span>
+        <input type="range" class="slider-b" id="bg-b" min="0" max="255" value="255">
+        <input type="number" class="num-input" id="bg-b-num" min="0" max="255" value="255">
+      </div>
+      <div class="swatch-row">
+        <div class="swatch-label">Quick Colors</div>
+        <div class="swatch-list" id="bg-presets"></div>
+      </div>
+    </div>
+
+    <div class="card glass">
+      <div class="card-title">
+        <span class="color-preview-dot" id="txt-dot"></span>
+        Text Color
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">R</span>
+        <input type="range" class="slider-r" id="txt-r" min="0" max="255" value="30">
+        <input type="number" class="num-input" id="txt-r-num" min="0" max="255" value="30">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">G</span>
+        <input type="range" class="slider-g" id="txt-g" min="0" max="255" value="30">
+        <input type="number" class="num-input" id="txt-g-num" min="0" max="255" value="30">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">B</span>
+        <input type="range" class="slider-b" id="txt-b" min="0" max="255" value="30">
+        <input type="number" class="num-input" id="txt-b-num" min="0" max="255" value="30">
+      </div>
+      <div class="swatch-row">
+        <div class="swatch-label">Quick Colors</div>
+        <div class="swatch-list" id="txt-presets"></div>
+      </div>
+    </div>
+
+    <div class="card glass">
+      <div class="card-title">Text Size</div>
+      <div class="size-row">
+        <input type="range" id="txt-size" min="8" max="72" value="20">
+        <input type="number" class="num-input" id="txt-size-num" min="8" max="72" value="20">
+      </div>
+      <div style="margin-top:8px; font-size:0.61rem; color: var(--text-muted);">Range: 8px – 72px</div>
+    </div>
+
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+
+    <div class="display-area glass">
+      <div class="display-label">Preview</div>
+      <div id="text-preview">
+        The quick brown fox jumps over the lazy dog. Sphinx of black quartz, judge my vow.
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card glass">
+        <div class="stat-label">Contrast Ratio</div>
+        <div class="stat-value" id="contrast-val">—</div>
+        <div id="wcag-badge"></div>
+      </div>
+      <div class="stat-card glass">
+        <div class="stat-label">BG Luminosity</div>
+        <div class="stat-value lum" id="bg-lum">—</div>
+      </div>
+      <div class="stat-card glass">
+        <div class="stat-label">Text Luminosity</div>
+        <div class="stat-value lum" id="txt-lum">—</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── Preset combinations ──
+  const combos = {
+    hc1: { bg:[255,255,255], txt:[0,0,0],       tag:'high',    label:'High Contrast' },
+    hc2: { bg:[0,0,0],       txt:[255,255,255], tag:'high',    label:'High Contrast' },
+    hc3: { bg:[255,255,255], txt:[0,0,128],     tag:'high',    label:'High Contrast' },
+    hc4: { bg:[15,23,42],    txt:[248,250,252], tag:'high',    label:'High Contrast' },
+    hc5: { bg:[255,255,0],   txt:[0,0,0],       tag:'high',    label:'High Contrast' },
+    lc1: { bg:[255,255,255], txt:[153,153,153], tag:'low',     label:'Low Contrast' },
+    lc2: { bg:[255,255,255], txt:[200,200,200], tag:'low',     label:'Low Contrast' },
+    lc3: { bg:[30,58,138],   txt:[59,130,246],  tag:'low',     label:'Low Contrast' },
+    lc4: { bg:[107,114,128], txt:[75,85,99],    tag:'low',     label:'Low Contrast' },
+    ws1: { bg:[255,255,255], txt:[36,41,47],    tag:'website', label:'GitHub' },
+    ws2: { bg:[21,32,43],    txt:[255,255,255], tag:'website', label:'Twitter / X' },
+    ws3: { bg:[255,255,255], txt:[0,0,0],       tag:'website', label:'Wikipedia' },
+    ws4: { bg:[255,255,255], txt:[60,64,67],    tag:'website', label:'Google' },
+    ws5: { bg:[74,21,75],    txt:[255,255,255], tag:'website', label:'Slack' },
+    ws6: { bg:[25,20,20],    txt:[29,185,84],   tag:'website', label:'Spotify' },
+    pf1: { bg:[0,128,0],     txt:[255,0,0],     tag:'fail',    label:'WCAG Fail' },
+    pf2: { bg:[255,255,255], txt:[255,220,0],   tag:'fail',    label:'WCAG Fail' },
+    pf3: { bg:[255,255,255], txt:[100,180,255], tag:'fail',    label:'WCAG Fail' },
+    pf4: { bg:[255,255,255], txt:[170,170,170], tag:'fail',    label:'WCAG Fail' },
+    pf5: { bg:[255,220,0],   txt:[255,100,0],   tag:'fail',    label:'WCAG Fail' },
+    pf6: { bg:[255,255,255], txt:[255,105,180], tag:'fail',    label:'WCAG Fail' },
+  };
+
+  const tagClasses = { high:'tag-high', low:'tag-low', website:'tag-website', fail:'tag-fail', random:'tag-random' };
+
+  document.getElementById('combo-select').addEventListener('change', function() {
+    const key = this.value;
+    const tagEl = document.getElementById('combo-tag');
+    if (!key || !combos[key]) { tagEl.className = 'preset-tag'; tagEl.textContent = ''; return; }
+    const c = combos[key];
+    setColor('bg',  ...c.bg);
+    setColor('txt', ...c.txt);
+    update();
+    tagEl.className = `preset-tag visible ${tagClasses[c.tag]}`;
+    tagEl.textContent = c.label;
+  });
+
+  // ── Random color generator ──
+  function rnd() { return Math.floor(Math.random() * 256); }
+
+  document.getElementById('random-btn').addEventListener('click', function() {
+    // Spin the dice
+    this.classList.remove('spinning');
+    void this.offsetWidth; // reflow
+    this.classList.add('spinning');
+    setTimeout(() => this.classList.remove('spinning'), 500);
+
+    const bgR = rnd(), bgG = rnd(), bgB = rnd();
+    const txtR = rnd(), txtG = rnd(), txtB = rnd();
+
+    setColor('bg',  bgR,  bgG,  bgB);
+    setColor('txt', txtR, txtG, txtB);
+
+    // Reset dropdown
+    document.getElementById('combo-select').value = '';
+
+    // Show "Random" tag
+    const tagEl = document.getElementById('combo-tag');
+    tagEl.className = 'preset-tag visible tag-random';
+    tagEl.textContent = 'Random 🎲';
+
+    update();
+
+    // Flash preview
+    const preview = document.getElementById('text-preview');
+    preview.classList.remove('flash');
+    void preview.offsetWidth;
+    preview.classList.add('flash');
+
+    // Drop a falling leaf for fun
+    spawnLeaf();
+  });
+
+  // ── Falling leaf spawner ──
+  const leafEmojis = ['🍃','🍀','🌿','🌱','☘️'];
+  function spawnLeaf() {
+    const el = document.createElement('div');
+    el.className = 'falling-leaf';
+    el.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
+    el.style.left = (10 + Math.random() * 80) + 'vw';
+    el.style.top = '-40px';
+    const dur = 3 + Math.random() * 3;
+    el.style.animationDuration = dur + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), dur * 1000 + 200);
+  }
+
+  // Spawn a couple leaves on load for ambiance
+  setTimeout(() => spawnLeaf(), 800);
+  setTimeout(() => spawnLeaf(), 2200);
+  setTimeout(() => spawnLeaf(), 4000);
+
+  // ── Quick swatch colors ──
+  const bgSwatchColors = [
+    [255,255,255],[0,0,0],[241,245,249],[15,23,42],
+    [255,251,235],[254,242,242],[240,249,255],[236,253,245]
+  ];
+  const txtSwatchColors = [
+    [0,0,0],[255,255,255],[30,64,175],[21,128,61],
+    [185,28,28],[124,58,237],[6,78,59],[157,23,77]
+  ];
+
+  function buildSwatches(colors, targetId, prefix) {
+    const container = document.getElementById(targetId);
+    colors.forEach(rgb => {
+      const s = document.createElement('div');
+      s.className = 'swatch';
+      s.style.background = `rgb(${rgb.join(',')})`;
+      s.title = `rgb(${rgb.join(',')})`;
+      s.addEventListener('click', () => { setColor(prefix, ...rgb); update(); });
+      container.appendChild(s);
+    });
+  }
+
+  buildSwatches(bgSwatchColors,  'bg-presets',  'bg');
+  buildSwatches(txtSwatchColors, 'txt-presets', 'txt');
+
+  function setColor(target, r, g, b) {
+    ['r','g','b'].forEach((ch, i) => {
+      const val = [r,g,b][i];
+      document.getElementById(`${target}-${ch}`).value     = val;
+      document.getElementById(`${target}-${ch}-num`).value = val;
+    });
+  }
+
+  function syncPair(sliderId, numId) {
+    const slider = document.getElementById(sliderId);
+    const num    = document.getElementById(numId);
+    slider.addEventListener('input', () => { num.value = slider.value; update(); });
+    num.addEventListener('input', () => {
+      let v = Math.max(0, Math.min(255, parseInt(num.value) || 0));
+      num.value = v; slider.value = v; update();
+    });
+  }
+
+  ['bg-r','bg-g','bg-b','txt-r','txt-g','txt-b'].forEach(id => syncPair(id, id+'-num'));
+
+  const sizeSlider = document.getElementById('txt-size');
+  const sizeNum    = document.getElementById('txt-size-num');
+  sizeSlider.addEventListener('input', () => { sizeNum.value = sizeSlider.value; update(); });
+  sizeNum.addEventListener('input', () => {
+    let v = Math.max(8, Math.min(72, parseInt(sizeNum.value) || 8));
+    sizeNum.value = v; sizeSlider.value = v; update();
+  });
+
+  function getVals(prefix) {
+    return ['r','g','b'].map(ch => parseInt(document.getElementById(`${prefix}-${ch}`).value));
+  }
+
+  function toLinear(c) {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(r, g, b) {
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  }
+
+  function contrastRatio(l1, l2) {
+    return (Math.max(l1,l2) + 0.05) / (Math.min(l1,l2) + 0.05);
+  }
+
+  function update() {
+    const bg  = getVals('bg');
+    const txt = getVals('txt');
+    const size = parseInt(sizeSlider.value);
+
+    const preview = document.getElementById('text-preview');
+    preview.style.background = `rgb(${bg.join(',')})`;
+    preview.style.color      = `rgb(${txt.join(',')})`;
+    preview.style.fontSize   = `${size}px`;
+
+    document.getElementById('bg-dot').style.background  = `rgb(${bg.join(',')})`;
+    document.getElementById('txt-dot').style.background = `rgb(${txt.join(',')})`;
+
+    const bgLum  = luminance(...bg);
+    const txtLum = luminance(...txt);
+    document.getElementById('bg-lum').textContent  = bgLum.toFixed(4);
+    document.getElementById('txt-lum').textContent = txtLum.toFixed(4);
+
+    const cr = contrastRatio(bgLum, txtLum);
+    document.getElementById('contrast-val').textContent = cr.toFixed(2) + ':1';
+
+    const badge = document.getElementById('wcag-badge');
+    if      (cr >= 7)   badge.innerHTML = '<span class="wcag-badge badge-aaa">AAA ✓</span>';
+    else if (cr >= 4.5) badge.innerHTML = '<span class="wcag-badge badge-aa">AA ✓</span>';
+    else if (cr >= 3)   badge.innerHTML = '<span class="wcag-badge badge-aal">AA Large ✓</span>';
+    else                badge.innerHTML = '<span class="wcag-badge badge-fail">Fail ✗</span>';
+  }
+
+  update();
+</script>
+</body>
+</html>
