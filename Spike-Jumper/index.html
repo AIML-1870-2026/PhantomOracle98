@@ -226,14 +226,14 @@ function drawParticles() {
 
 // ─── Fox ─────────────────────────────────────────────────────────
 const fox = {
-  x: 110, y: GROUND, w: 40, h: 36,
+  x: 110, y: GROUND - 36, w: 40, h: 36,
   vy: 0, jumps: 0,
   sx: 1, sy: 1,   // squash/stretch scale
   dead: false,
   anim: 0,
 
   reset() {
-    this.y = GROUND; this.vy = 0; this.jumps = 0;
+    this.y = GROUND - this.h; this.vy = 0; this.jumps = 0;
     this.sx = 1; this.sy = 1; this.dead = false;
   },
 
@@ -263,16 +263,16 @@ const fox = {
     if (this.dead) return;
     this.vy += 0.7;
     this.y  += this.vy;
-    if (this.y >= GROUND) {
+    if (this.y + this.h >= GROUND) {
       if (this.vy > 3) {
         SFX.land();
-        spawnParticles(this.x + 20, GROUND + this.h, 10, {
+        spawnParticles(this.x + 20, GROUND, 10, {
           radial: false, spread: 2.2, speed: 3.5, vy: -2,
           size: 4, colors: ['#6b3a2a','#8b5a3a','#a07050','#c09070'],
         });
         this.sx = 1.3; this.sy = 0.7;
       }
-      this.y = GROUND; this.vy = 0; this.jumps = 0;
+      this.y = GROUND - this.h; this.vy = 0; this.jumps = 0;
     }
     // lerp scale back
     this.sx += (1 - this.sx) * 0.18;
@@ -288,7 +288,7 @@ const fox = {
     ctx.scale(this.sx, this.sy);
     ctx.translate(-this.w / 2, -this.h / 2);
 
-    const airborne = this.y < GROUND - 2;
+    const airborne = this.y + this.h < GROUND - 2;
     const leg = airborne ? 0.3 : Math.sin(this.anim * 0.3) * 0.4;
 
     // ── Tail ──
@@ -359,10 +359,16 @@ const fox = {
 };
 
 // ─── Parallax background ─────────────────────────────────────────
-let farX = 0, midX = 0, cloudX = 0;
+let farX = 0, midX = 0, closeX = 0, cloudX = 0;
 
-const farTrees = [0,100,200,310,420,530,640,750].map(x => ({ x, h: 55 + Math.random()*20, r: 28 + Math.random()*10 }));
-const midTrees = [0,130,270,400,540,680].map(x => ({ x, h: 80 + Math.random()*20, r: 40 + Math.random()*12 }));
+const farTrees = [0,60,120,175,240,300,360,420,480,540,600,660,720,780]
+  .map(x => ({ x, h: 48 + Math.random()*22, r: 24 + Math.random()*10 }));
+const midTrees = [0,80,160,240,320,400,480,560,640,720]
+  .map(x => ({ x, h: 75 + Math.random()*25, r: 36 + Math.random()*14 }));
+const closeTrees = [0,110,230,360,490,620,750]
+  .map(x => ({ x, h: 105 + Math.random()*30, r: 50 + Math.random()*16 }));
+const bushes = [0,55,115,175,240,300,360,420,490,555,615,680,740,800]
+  .map(x => ({ x, r: 12 + Math.random()*10 }));
 const cloudDefs = [
   { x:60,  y:45,  w:90, h:38 },
   { x:290, y:28,  w:70, h:32 },
@@ -403,16 +409,22 @@ function drawBackground() {
     ctx.beginPath(); ctx.ellipse(cx + c.w * 0.52, c.y, c.w * 0.32, c.h * 0.36, 0, 0, Math.PI * 2); ctx.fill();
   });
 
-  // Far trees
+  // Far trees (lightest green, slow)
   farTrees.forEach(t => {
-    const tx = ((t.x - farX % (W + 110)) + W + 110) % (W + 110) - 55;
-    drawTree(tx, GROUND, t.h, t.r, '#6da832', '#5a4030');
+    const tx = ((t.x - farX % (W + 80)) + W + 80) % (W + 80) - 40;
+    drawTree(tx, GROUND, t.h, t.r, '#7ec83a', '#5a4030');
   });
 
-  // Mid trees
+  // Mid trees (darker green)
   midTrees.forEach(t => {
-    const tx = ((t.x - midX % (W + 150)) + W + 150) % (W + 150) - 70;
-    drawTree(tx, GROUND, t.h, t.r, '#2e6010', '#3a2010');
+    const tx = ((t.x - midX % (W + 110)) + W + 110) % (W + 110) - 55;
+    drawTree(tx, GROUND, t.h, t.r, '#3a7018', '#3a2010');
+  });
+
+  // Close trees (darkest, fastest — 65% of speed)
+  closeTrees.forEach(t => {
+    const tx = ((t.x - closeX % (W + 140)) + W + 140) % (W + 140) - 70;
+    drawTree(tx, GROUND, t.h, t.r, '#1e4c0a', '#2a1808');
   });
 
   // Ground — shifts red as speed climbs
@@ -422,6 +434,16 @@ function drawBackground() {
   ctx.fillRect(0, GROUND, W, H - GROUND);
   ctx.fillStyle = '#5a9c2a';
   ctx.fillRect(0, GROUND, W, 8);
+
+  // Ground bushes
+  bushes.forEach(b => {
+    const bx = ((b.x - closeX % (W + 60)) + W + 60) % (W + 60) - 30;
+    ctx.fillStyle = '#3a7010';
+    ctx.beginPath(); ctx.ellipse(bx, GROUND + 2, b.r, b.r * 0.6, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4a8818';
+    ctx.beginPath(); ctx.ellipse(bx - b.r*0.3, GROUND, b.r*0.6, b.r*0.5, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(bx + b.r*0.3, GROUND, b.r*0.55, b.r*0.45, 0, Math.PI, Math.PI * 2); ctx.fill();
+  });
 }
 
 // ─── Hazard definitions ───────────────────────────────────────────
@@ -630,6 +652,7 @@ function loop() {
   const spd = (phase === 'playing' || phase === 'dying') ? gameSpeed : 0;
   farX   += spd * 0.15;
   midX   += spd * 0.35;
+  closeX += spd * 0.65;
   cloudX += 0.3;
 
   // Draw world
