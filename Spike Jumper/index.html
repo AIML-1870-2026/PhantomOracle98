@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fox Run</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a2e1a;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
+}
+#gameWrapper { position: relative; }
+canvas {
+  display: block;
+  border-radius: 12px;
+  box-shadow: 0 0 60px rgba(0,0,0,0.7);
+}
+.screen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  pointer-events: all;
+}
+.screen.active { display: flex; }
+.screen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 72px;
+  color: #fff;
+  text-shadow: 4px 4px 0 #6b3a2a, 0 0 30px rgba(255,200,50,0.5);
+  margin-bottom: 10px;
+}
+.screen h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 46px;
+  color: #fff;
+  text-shadow: 3px 3px 0 #6b3a2a;
+  margin-bottom: 14px;
+}
+.screen p {
+  font-size: 18px;
+  color: rgba(255,255,255,0.85);
+  margin-bottom: 6px;
+  text-align: center;
+}
+.big-score {
+  font-family: 'Fredoka One', cursive;
+  font-size: 60px;
+  color: #FFD700;
+  text-shadow: 3px 3px 0 #6b3a2a;
+}
+.sub-score {
+  font-family: 'Fredoka One', cursive;
+  font-size: 38px;
+  color: #a0e060;
+  text-shadow: 2px 2px 0 #2a4a10;
+}
+.btn {
+  margin-top: 24px;
+  padding: 14px 52px;
+  font-family: 'Fredoka One', cursive;
+  font-size: 28px;
+  color: #fff;
+  background: linear-gradient(135deg, #4a7c2a, #2e5c18);
+  border: 3px solid #FFD700;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 0 6px 0 #1a3c08, 0 8px 24px rgba(0,0,0,0.5);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #1a3c08, 0 12px 28px rgba(0,0,0,0.5); }
+.btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #1a3c08; }
+#hud {
+  position: absolute;
+  top: 14px; left: 0;
+  width: 100%;
+  padding: 0 22px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.hud-val {
+  font-family: 'Fredoka One', cursive;
+  font-size: 30px;
+  color: #fff;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+}
+#hint {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%;
+  text-align: center;
+  padding: 7px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.65);
+  background: rgba(0,0,0,0.28);
+  border-radius: 0 0 12px 12px;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="c" width="800" height="400"></canvas>
+
+  <div id="hud">
+    <div class="hud-val">Score: <span id="scoreEl">0</span></div>
+    <div class="hud-val">Best: <span id="bestEl">0</span></div>
+  </div>
+
+  <div id="startScreen" class="screen active">
+    <h1>🦊 Fox Run</h1>
+    <p>Dodge logs, mushrooms, and swooping hawks!</p>
+    <p>Double jump for extra height!</p>
+    <button class="btn" id="startBtn">Start Running!</button>
+  </div>
+
+  <div id="overScreen" class="screen">
+    <h2>🌲 You tripped!</h2>
+    <p>Score</p>
+    <div class="big-score" id="finalScore">0</div>
+    <p style="margin-top:14px;">Best</p>
+    <div class="sub-score" id="finalBest">0</div>
+    <button class="btn" id="restartBtn">Run Again!</button>
+  </div>
+
+  <div id="hint">SPACE or TAP to jump &nbsp;·&nbsp; Double jump available!</div>
+</div>
+
+<script>
+// ─── Canvas setup ────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND = H - 80;   // y where fox stands (top of legs)
+
+// ─── Game state ──────────────────────────────────────────────────
+let phase = 'start';  // 'start' | 'playing' | 'dying' | 'dead'
+let score = 0;
+let best  = parseInt(localStorage.getItem('foxRunBest') || '0');
+let frame = 0;
+let gameSpeed = 4;
+let deathTimer = 0;
+let lastMilestone = 0;
+
+// ─── Audio (Web Audio API synthesised) ───────────────────────────
+let audioCtx = null;
+function getAC() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playNote(freq, type, start, dur, vol = 0.25) {
+  const ac = getAC();
+  const osc  = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime + start);
+  gain.gain.setValueAtTime(vol, ac.currentTime + start);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + start + dur);
+  osc.start(ac.currentTime + start);
+  osc.stop(ac.currentTime + start + dur + 0.01);
+}
+const SFX = {
+  jump:        () => { playNote(300,'sine',0,0.07); playNote(500,'sine',0.07,0.08); },
+  doubleJump:  () => { playNote(450,'sine',0,0.07); playNote(700,'sine',0.07,0.07); playNote(900,'sine',0.14,0.1); },
+  land:        () => { playNote(120,'sawtooth',0,0.1,0.2); },
+  milestone:   () => { playNote(800,'sine',0,0.12); playNote(1000,'sine',0.12,0.15); },
+  death:       () => { [400,300,200,100].forEach((f,i) => playNote(f,'sawtooth',i*0.12,0.12,0.18)); },
+};
+
+// ─── Particles ───────────────────────────────────────────────────
+let particles = [];
+
+function spawnParticles(x, y, count, cfg) {
+  for (let i = 0; i < count; i++) {
+    let angle;
+    if (cfg.radial) {
+      angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+    } else {
+      angle = Math.PI + (Math.random() - 0.5) * (cfg.spread || 1.5);
+    }
+    const spd = cfg.speed * (0.5 + Math.random() * 0.8);
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd + (cfg.vx || 0),
+      vy: Math.sin(angle) * spd + (cfg.vy || 0),
+      life: 1,
+      decay: 0.018 + Math.random() * 0.022,
+      size: cfg.size * (0.5 + Math.random() * 0.8),
+      color: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
+    });
+  }
+}
+
+function updateParticles() {
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life -= p.decay;
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ─── Fox ─────────────────────────────────────────────────────────
+const fox = {
+  x: 110, y: GROUND, w: 40, h: 36,
+  vy: 0, jumps: 0,
+  sx: 1, sy: 1,   // squash/stretch scale
+  dead: false,
+  anim: 0,
+
+  reset() {
+    this.y = GROUND; this.vy = 0; this.jumps = 0;
+    this.sx = 1; this.sy = 1; this.dead = false;
+  },
+
+  jump() {
+    if (this.jumps >= 2 || this.dead) return;
+    if (this.jumps === 0) {
+      this.vy = -13;
+      SFX.jump();
+      spawnParticles(this.x + 20, this.y + this.h, 8, {
+        radial: false, spread: 1.0, speed: 3, vy: 1,
+        size: 5, colors: ['#a0d060','#c8e860','#f0f080','#88cc40'],
+      });
+      this.sx = 0.7; this.sy = 1.3;
+    } else {
+      this.vy = -11;
+      SFX.doubleJump();
+      spawnParticles(this.x + 20, this.y + this.h / 2, 14, {
+        radial: true, speed: 4.5,
+        size: 5, colors: ['#FFD700','#FFA500','#FFE87C','#fff'],
+      });
+      this.sx = 0.7; this.sy = 1.3;
+    }
+    this.jumps++;
+  },
+
+  update() {
+    if (this.dead) return;
+    this.vy += 0.7;
+    this.y  += this.vy;
+    if (this.y >= GROUND) {
+      if (this.vy > 3) {
+        SFX.land();
+        spawnParticles(this.x + 20, GROUND + this.h, 10, {
+          radial: false, spread: 2.2, speed: 3.5, vy: -2,
+          size: 4, colors: ['#6b3a2a','#8b5a3a','#a07050','#c09070'],
+        });
+        this.sx = 1.3; this.sy = 0.7;
+      }
+      this.y = GROUND; this.vy = 0; this.jumps = 0;
+    }
+    // lerp scale back
+    this.sx += (1 - this.sx) * 0.18;
+    this.sy += (1 - this.sy) * 0.18;
+    this.anim++;
+  },
+
+  draw() {
+    ctx.save();
+    const cx = this.x + this.w / 2;
+    const cy = this.y + this.h / 2;
+    ctx.translate(cx, cy);
+    ctx.scale(this.sx, this.sy);
+    ctx.translate(-this.w / 2, -this.h / 2);
+
+    const airborne = this.y < GROUND - 2;
+    const leg = airborne ? 0.3 : Math.sin(this.anim * 0.3) * 0.4;
+
+    // ── Tail ──
+    ctx.save();
+    ctx.translate(-8, 18);
+    ctx.rotate(-0.3 + Math.sin(this.anim * 0.18) * 0.18);
+    ctx.fillStyle = '#ff8c00';
+    ctx.beginPath(); ctx.ellipse(0, 0, 7, 13, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(0, -10, 4.5, 5.5, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // ── Body ──
+    ctx.fillStyle = '#ff8c00';
+    ctx.beginPath(); ctx.ellipse(20, 19, 15, 11, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ── Belly ──
+    ctx.fillStyle = '#fff8ee';
+    ctx.beginPath(); ctx.ellipse(22, 22, 8, 6, 0.1, 0, Math.PI * 2); ctx.fill();
+
+    // ── Head ──
+    ctx.fillStyle = '#ff8c00';
+    ctx.beginPath(); ctx.ellipse(31, 12, 12, 10, -0.15, 0, Math.PI * 2); ctx.fill();
+
+    // ── Ears ──
+    ctx.fillStyle = '#ff8c00';
+    ctx.beginPath(); ctx.moveTo(24,5); ctx.lineTo(20,-7); ctx.lineTo(29,3); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(35,5); ctx.lineTo(40,-7); ctx.lineTo(30,3); ctx.fill();
+    ctx.fillStyle = '#ffb080';
+    ctx.beginPath(); ctx.moveTo(24.5,4); ctx.lineTo(21,-5); ctx.lineTo(28,3); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(34.5,4); ctx.lineTo(38.5,-5); ctx.lineTo(30,3); ctx.fill();
+
+    // ── Muzzle ──
+    ctx.fillStyle = '#ffcfa0';
+    ctx.beginPath(); ctx.ellipse(37, 15, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // ── Nose ──
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.ellipse(40, 13.5, 2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (this.dead) {
+      // X eyes
+      ctx.strokeStyle = '#222'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+      [[25,9],[32,9]].forEach(([ex, ey]) => {
+        ctx.beginPath(); ctx.moveTo(ex-2.5,ey-2.5); ctx.lineTo(ex+2.5,ey+2.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ex+2.5,ey-2.5); ctx.lineTo(ex-2.5,ey+2.5); ctx.stroke();
+      });
+    } else {
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(28, 10, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(29, 9, 1, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ── Legs ──
+    ctx.strokeStyle = '#cc6600'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    const legPairs = [[11, -leg*0.7],[17, leg*0.7],[25, leg],[31, -leg]];
+    legPairs.forEach(([lx, rot]) => {
+      ctx.save();
+      ctx.translate(lx, 28);
+      ctx.rotate(rot);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,12); ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  },
+};
+
+// ─── Parallax background ─────────────────────────────────────────
+let farX = 0, midX = 0, cloudX = 0;
+
+const farTrees = [0,100,200,310,420,530,640,750].map(x => ({ x, h: 55 + Math.random()*20, r: 28 + Math.random()*10 }));
+const midTrees = [0,130,270,400,540,680].map(x => ({ x, h: 80 + Math.random()*20, r: 40 + Math.random()*12 }));
+const cloudDefs = [
+  { x:60,  y:45,  w:90, h:38 },
+  { x:290, y:28,  w:70, h:32 },
+  { x:520, y:55,  w:100,h:44 },
+  { x:720, y:38,  w:65, h:30 },
+];
+
+function drawTree(x, groundY, trunkH, canopyR, canopy, trunk) {
+  ctx.fillStyle = trunk;
+  ctx.fillRect(x - 5, groundY - trunkH, 10, trunkH);
+  ctx.fillStyle = canopy;
+  ctx.beginPath(); ctx.arc(x, groundY - trunkH, canopyR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, groundY - trunkH - canopyR * 0.55, canopyR * 0.75, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawBackground() {
+  const ratio = Math.min((gameSpeed - 4) / 8, 1);
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+  sky.addColorStop(0, '#87CEEB');
+  sky.addColorStop(1, '#c8eaff');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GROUND);
+
+  // Sun
+  ctx.save();
+  ctx.fillStyle = '#FFD700';
+  ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 35;
+  ctx.beginPath(); ctx.arc(710, 55, 36, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // Clouds
+  cloudDefs.forEach(c => {
+    const cx = ((c.x - cloudX * 0.5 % (W + 200)) + W + 200) % (W + 200) - 100;
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.beginPath(); ctx.ellipse(cx, c.y, c.w * 0.55, c.h * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + c.w * 0.28, c.y - c.h * 0.22, c.w * 0.38, c.h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + c.w * 0.52, c.y, c.w * 0.32, c.h * 0.36, 0, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // Far trees
+  farTrees.forEach(t => {
+    const tx = ((t.x - farX % (W + 110)) + W + 110) % (W + 110) - 55;
+    drawTree(tx, GROUND, t.h, t.r, '#6da832', '#5a4030');
+  });
+
+  // Mid trees
+  midTrees.forEach(t => {
+    const tx = ((t.x - midX % (W + 150)) + W + 150) % (W + 150) - 70;
+    drawTree(tx, GROUND, t.h, t.r, '#2e6010', '#3a2010');
+  });
+
+  // Ground — shifts red as speed climbs
+  const gr = Math.round(60 + ratio * 140);
+  const gg = Math.round(100 - ratio * 80);
+  ctx.fillStyle = `rgb(${gr},${gg},20)`;
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = '#5a9c2a';
+  ctx.fillRect(0, GROUND, W, 8);
+}
+
+// ─── Hazard definitions ───────────────────────────────────────────
+const SIZES = {
+  log:      { w: 30, h: 32 },
+  mushroom: { w: 28, h: 50 },
+  hawk:     { w: 40, h: 24 },
+};
+
+function drawLog(x, y) {
+  const { w, h } = SIZES.log;
+  // Main cylinder
+  ctx.fillStyle = '#7a4a2a';
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill();
+  // Wood grain
+  ctx.fillStyle = '#9a6040';
+  ctx.fillRect(x+3, y+5, w-6, 5);
+  ctx.fillRect(x+3, y+14, w-6, 4);
+  ctx.fillRect(x+3, y+22, w-6, 4);
+  // Top face
+  ctx.fillStyle = '#8a5a38';
+  ctx.beginPath(); ctx.ellipse(x+w/2, y, w/2-1, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#5a3018'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(x+w/2, y, w/2-1, 6, 0, 0, Math.PI * 2); ctx.stroke();
+  // Ring
+  ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(x+w/2, y, w/2-4, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawMushroom(x, y) {
+  const { w, h } = SIZES.mushroom;
+  // Stem
+  ctx.fillStyle = '#f0e8d0';
+  ctx.fillRect(x+7, y + h*0.48, w-14, h*0.52);
+  // Stem highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(x+9, y + h*0.5, 4, h*0.45);
+  // Cap
+  ctx.fillStyle = '#cc2222';
+  ctx.beginPath();
+  ctx.arc(x + w/2, y + h*0.45, w/2 + 4, Math.PI, Math.PI * 2);
+  ctx.lineTo(x + w + 4, y + h*0.5);
+  ctx.lineTo(x - 4, y + h*0.5);
+  ctx.closePath(); ctx.fill();
+  // Cap highlight
+  ctx.fillStyle = '#ee4444';
+  ctx.beginPath(); ctx.ellipse(x+w/2-4, y+h*0.28, 6, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+  // Spots
+  [[w/2, h*0.18, 5.5,4.5],[w*0.22,h*0.32,3.5,3],[w*0.78,h*0.30,3,2.5]].forEach(([sx,sy,rx,ry]) => {
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); ctx.ellipse(x+sx, y+sy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function drawHawk(x, y) {
+  const { w, h } = SIZES.hawk;
+  const bob  = Math.sin(frame * 0.1) * 3;
+  const flap = Math.sin(frame * 0.18) * 0.35;
+  ctx.save();
+  ctx.translate(x + w/2, y + h/2 + bob);
+
+  // Left wing
+  ctx.fillStyle = '#5a3a1a';
+  ctx.save(); ctx.rotate(-flap);
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(-w/2-5,-h/2-3); ctx.lineTo(-w/2+3,5); ctx.fill();
+  ctx.restore();
+  // Right wing
+  ctx.save(); ctx.rotate(flap);
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(w/2+5,-h/2-3); ctx.lineTo(w/2-3,5); ctx.fill();
+  ctx.restore();
+
+  // Body
+  ctx.fillStyle = '#7a5a2a';
+  ctx.beginPath(); ctx.ellipse(0, 3, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
+  // Belly stripe
+  ctx.fillStyle = '#c8a870';
+  ctx.beginPath(); ctx.ellipse(0, 6, 5, 7, 0, 0, Math.PI * 2); ctx.fill();
+  // Head
+  ctx.fillStyle = '#9a7a3a';
+  ctx.beginPath(); ctx.ellipse(0, -9, 8, 8, 0, 0, Math.PI * 2); ctx.fill();
+  // Beak
+  ctx.fillStyle = '#e8a020';
+  ctx.beginPath(); ctx.moveTo(5,-11); ctx.lineTo(15,-9); ctx.lineTo(5,-7); ctx.fill();
+  // Eye
+  ctx.fillStyle = '#ff4400';
+  ctx.beginPath(); ctx.arc(4,-11,3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(5,-11,1.6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.arc(4.5,-11.5,0.8,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ─── Chunk / hazard spawning ──────────────────────────────────────
+let hazards = [];
+let nextChunkAt = W + 200;
+
+const CHUNKS = [
+  x => [{ type:'log',      x,         y: GROUND }],
+  x => [{ type:'log',      x,         y: GROUND }, { type:'log',      x: x+90,  y: GROUND }],
+  x => [{ type:'log',      x,         y: GROUND }, { type:'mushroom', x: x+130, y: GROUND }],
+  x => [{ type:'mushroom', x,         y: GROUND }],
+  x => [{ type:'hawk',     x,         y: GROUND - 60 }],
+  x => [{ type:'hawk',     x,         y: GROUND - 130 }],
+  x => [{ type:'log',      x,         y: GROUND }, { type:'hawk',     x: x+150, y: GROUND - 60 }],
+  x => [{ type:'mushroom', x,         y: GROUND }, { type:'mushroom', x: x+140, y: GROUND }],
+  x => [{ type:'hawk',     x,         y: GROUND - 130 }, { type:'hawk', x: x+160, y: GROUND - 60 }],
+  x => [{ type:'log',      x,         y: GROUND }, { type:'log',      x: x+80,  y: GROUND }, { type:'log', x: x+160, y: GROUND }],
+];
+
+function spawnChunk() {
+  const fn = CHUNKS[Math.floor(Math.random() * CHUNKS.length)];
+  const newH = fn(nextChunkAt);
+  hazards.push(...newH);
+  const maxX = Math.max(...newH.map(h => h.x));
+  nextChunkAt = maxX + 250 + Math.random() * 200;
+}
+
+function updateHazards() {
+  hazards.forEach(h => h.x -= gameSpeed);
+  hazards = hazards.filter(h => h.x > -120);
+  nextChunkAt -= gameSpeed;
+  if (nextChunkAt < W + 60) spawnChunk();
+}
+
+// ─── Collision (forgiveness margin 6px) ──────────────────────────
+function checkCollision() {
+  const M  = 6;
+  const fx = fox.x + M, fy = fox.y + M;
+  const fw = fox.w - M*2, fh = fox.h - M*2;
+  for (const h of hazards) {
+    const sz = SIZES[h.type];
+    const hx = h.x, hy = h.y - sz.h;
+    if (fx < hx + sz.w && fx + fw > hx && fy < hy + sz.h && fy + fh > hy) return true;
+  }
+  return false;
+}
+
+// ─── Death ───────────────────────────────────────────────────────
+function die() {
+  fox.dead = true;
+  spawnParticles(fox.x + 20, fox.y + 18, 30, {
+    radial: true, speed: 5.5,
+    size: 7, colors: ['#ff8c00','#FFD700','#ff4444','#44ff88','#4488ff','#fff','#ff88cc'],
+  });
+  SFX.death();
+  if (score > best) {
+    best = score;
+    localStorage.setItem('foxRunBest', best);
+  }
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalBest').textContent  = best;
+  deathTimer = 0;
+  phase = 'dying';
+}
+
+// ─── Score HUD ───────────────────────────────────────────────────
+function updateScore() {
+  if (frame % 6 === 0) {
+    score++;
+    document.getElementById('scoreEl').textContent = score;
+    if (score > 0 && score % 50 === 0 && score !== lastMilestone) {
+      SFX.milestone();
+      lastMilestone = score;
+    }
+  }
+  gameSpeed = 4 + Math.min(score / 300, 8);
+}
+
+// ─── Input ───────────────────────────────────────────────────────
+function handleInput() {
+  if (phase === 'playing')        fox.jump();
+  else if (phase === 'start')     startGame();
+  else if (phase === 'dead')      startGame();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); handleInput(); }
+});
+canvas.addEventListener('pointerdown', e => { e.preventDefault(); handleInput(); });
+
+document.getElementById('startBtn').addEventListener('click', () => startGame());
+document.getElementById('restartBtn').addEventListener('click', () => startGame());
+
+// ─── Game lifecycle ───────────────────────────────────────────────
+function startGame() {
+  getAC();
+  phase = 'playing';
+  score = 0; frame = 0; gameSpeed = 4; lastMilestone = 0;
+  hazards = []; nextChunkAt = W + 200;
+  particles = [];
+  fox.reset();
+  document.getElementById('scoreEl').textContent = '0';
+  document.getElementById('bestEl').textContent  = best;
+  document.getElementById('startScreen').classList.remove('active');
+  document.getElementById('overScreen').classList.remove('active');
+  spawnChunk();
+}
+
+// ─── Main loop ────────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+
+  // Parallax scroll speed
+  const spd = (phase === 'playing' || phase === 'dying') ? gameSpeed : 0;
+  farX   += spd * 0.15;
+  midX   += spd * 0.35;
+  cloudX += 0.3;
+
+  // Draw world
+  drawBackground();
+
+  // Draw hazards below fox
+  hazards.forEach(h => {
+    const sz = SIZES[h.type];
+    if      (h.type === 'log')      drawLog(h.x, h.y - sz.h);
+    else if (h.type === 'mushroom') drawMushroom(h.x, h.y - sz.h);
+    else if (h.type === 'hawk')     drawHawk(h.x, h.y);
+  });
+
+  fox.update();
+  fox.draw();
+  updateParticles();
+  drawParticles();
+
+  if (phase === 'playing') {
+    frame++;
+    updateScore();
+    updateHazards();
+    if (checkCollision()) die();
+  }
+
+  if (phase === 'dying') {
+    frame++;
+    deathTimer++;
+    if (deathTimer >= 48) {
+      phase = 'dead';
+      document.getElementById('overScreen').classList.add('active');
+    }
+  }
+}
+
+// Init
+document.getElementById('bestEl').textContent = best;
+loop();
+</script>
+</body>
+</html>
