@@ -448,8 +448,8 @@ function drawBackground() {
 
 // ─── Hazard definitions ───────────────────────────────────────────
 const SIZES = {
-  log:      { w: 30, h: 32 },
-  mushroom: { w: 28, h: 50 },
+  log:      { w: 30, h: 48 },
+  mushroom: { w: 28, h: 54 },
   hawk:     { w: 40, h: 24 },
 };
 
@@ -572,7 +572,7 @@ function updateHazards() {
 
 // ─── Collision (forgiveness margin 6px) ──────────────────────────
 function checkCollision() {
-  const M  = 6;
+  const M  = 2;
   const fx = fox.x + M, fy = fox.y + M;
   const fw = fox.w - M*2, fh = fox.h - M*2;
   for (const h of hazards) {
@@ -659,16 +659,16 @@ function loop() {
   // Draw world
   drawBackground();
 
-  // Draw hazards below fox
+  fox.update();
+  fox.draw();
+
+  // Draw hazards in front of fox
   hazards.forEach(h => {
     const sz = SIZES[h.type];
     if      (h.type === 'log')      drawLog(h.x, h.y - sz.h);
     else if (h.type === 'mushroom') drawMushroom(h.x, h.y - sz.h);
     else if (h.type === 'hawk')     drawHawk(h.x, h.y);
   });
-
-  fox.update();
-  fox.draw();
   updateParticles();
   drawParticles();
 
