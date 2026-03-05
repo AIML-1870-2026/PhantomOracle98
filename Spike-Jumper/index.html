@@ -547,11 +547,11 @@ const CHUNKS = [
   x => [{ type:'log',      x,         y: GROUND }, { type:'log',      x: x+90,  y: GROUND }],
   x => [{ type:'log',      x,         y: GROUND }, { type:'mushroom', x: x+130, y: GROUND }],
   x => [{ type:'mushroom', x,         y: GROUND }],
-  x => [{ type:'hawk',     x,         y: GROUND - 60 }],
-  x => [{ type:'hawk',     x,         y: GROUND - 130 }],
-  x => [{ type:'log',      x,         y: GROUND }, { type:'hawk',     x: x+150, y: GROUND - 60 }],
+  x => [{ type:'hawk',     x,         y: GROUND - 36 }],
+  x => [{ type:'hawk',     x,         y: GROUND - 80 }],
+  x => [{ type:'log',      x,         y: GROUND }, { type:'hawk',     x: x+150, y: GROUND - 36 }],
   x => [{ type:'mushroom', x,         y: GROUND }, { type:'mushroom', x: x+140, y: GROUND }],
-  x => [{ type:'hawk',     x,         y: GROUND - 130 }, { type:'hawk', x: x+160, y: GROUND - 60 }],
+  x => [{ type:'hawk',     x,         y: GROUND - 80 }, { type:'hawk', x: x+160, y: GROUND - 36 }],
   x => [{ type:'log',      x,         y: GROUND }, { type:'log',      x: x+80,  y: GROUND }, { type:'log', x: x+160, y: GROUND }],
 ];
 
@@ -577,7 +577,8 @@ function checkCollision() {
   const fw = fox.w - M*2, fh = fox.h - M*2;
   for (const h of hazards) {
     const sz = SIZES[h.type];
-    const hx = h.x, hy = h.y - sz.h;
+    const hx = h.x;
+    const hy = h.type === 'hawk' ? h.y : h.y - sz.h;
     if (fx < hx + sz.w && fx + fw > hx && fy < hy + sz.h && fy + fh > hy) return true;
   }
   return false;
