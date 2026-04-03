@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug Safety Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #131929;
+    --surface2: #1b2237;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf6;
+    --muted: #8892a4;
+    --accent: #4af0b8;
+    --accent2: #7c6af5;
+    --warn: #f0a44a;
+    --danger: #f05a5a;
+    --info: #4aa8f0;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'Outfit', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+  }
+
+  .logo span { color: var(--text); }
+
+  nav { display: flex; gap: 0; }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .nav-btn:hover { color: var(--text); background: var(--surface); }
+  .nav-btn.active { color: var(--accent); background: rgba(74,240,184,0.08); }
+
+  .help-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .help-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface); }
+
+  /* PAGES */
+  .page { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* PAGE TITLES */
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+  }
+
+  .page-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 2rem;
+  }
+
+  /* SEARCH BAR */
+  .search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+
+  .search-row input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-row input:focus { border-color: var(--accent); }
+  .search-row input::placeholder { color: var(--muted); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0b0f1a;
+    border: none;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 22px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+
+  /* STAT CHIPS */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+  }
+
+  .stat-chip .label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-chip .value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .stat-chip .value.warn { color: var(--warn); }
+  .stat-chip .value.danger { color: var(--danger); }
+  .stat-chip .value.info { color: var(--info); }
+
+  /* GRID LAYOUTS */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+  /* CHART WRAPPER */
+  .chart-wrap {
+    position: relative;
+    height: 280px;
+  }
+
+  /* TABLE */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+
+  /* BADGE */
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .badge.serious { background: rgba(240,90,90,0.15); color: #f07070; }
+  .badge.mild { background: rgba(74,240,184,0.12); color: var(--accent); }
+  .badge.moderate { background: rgba(240,164,74,0.15); color: var(--warn); }
+
+  /* BAR CHART CUSTOM */
+  .bar-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .bar-item { display: flex; flex-direction: column; gap: 4px; }
+
+  .bar-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .bar-label { color: var(--text); font-weight: 500; }
+  .bar-count { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+
+  .bar-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  /* TIMELINE */
+  .timeline-wrap { overflow: hidden; }
+
+  /* LOADING */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 3rem;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+  }
+
+  .empty-state .icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+  }
+
+  .empty-state h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+    font-weight: 400;
+  }
+
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .modal h2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .modal p { color: var(--muted); font-size: 14px; line-height: 1.8; margin-bottom: 0.75rem; }
+  .modal p strong { color: var(--text); font-weight: 500; }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+
+  .modal-close:hover { color: var(--text); }
+
+  /* DRUG CLASS GRID */
+  .class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .class-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .class-card:hover {
+    border-color: var(--accent2);
+    background: rgba(124,106,245,0.08);
+    transform: translateY(-2px);
+  }
+
+  .class-card.selected {
+    border-color: var(--accent);
+    background: rgba(74,240,184,0.07);
+  }
+
+  .class-icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+  }
+
+  .class-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .class-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* SEVERITY PIE LEGEND */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 1rem;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+
+  /* SECTION HEADERS */
+  .section-hd {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  /* COMPARE SLOTS */
+  .compare-slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .compare-slot {
+    background: var(--surface2);
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 1rem;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .slot-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .slot-drug {
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--accent);
+  }
+
+  .pill-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(74,240,184,0.1);
+    border: 1px solid rgba(74,240,184,0.25);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin: 4px;
+  }
+
+  .pill-tag button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.7;
+  }
+  .pill-tag button:hover { opacity: 1; }
+
+  /* REACTIONS LIST */
+  .reactions-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .reaction-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* YEAR AXIS */
+  .year-chart-wrap { position: relative; height: 200px; }
+
+  /* INFO BOX */
+  .info-box {
+    background: rgba(74,168,240,0.08);
+    border: 1px solid rgba(74,168,240,0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 13px;
+    color: var(--info);
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 700px) {
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .compare-slots { grid-template-columns: 1fr; }
+    header { padding: 0 1rem; }
+    .page { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Drug<span>Safety</span> Explorer</div>
+  <nav>
+    <button class="nav-btn active" onclick="showPage('search')">Search</button>
+    <button class="nav-btn" onclick="showPage('visual')">Visual Stories</button>
+    <button class="nav-btn" onclick="showPage('classes')">Drug Classes</button>
+  </nav>
+  <button class="help-btn" onclick="openHelp()">? How to read this data</button>
+</header>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeHelp()">✕</button>
+    <h2>How to read this data</h2>
+    <p><strong>Source:</strong> All data comes from the FDA's OpenFDA Adverse Event Reporting System (FAERS). Reports are submitted voluntarily by patients, healthcare providers, and manufacturers.</p>
+    <p><strong>What are adverse events?</strong> An adverse event is any undesirable experience associated with using a medical product. It does <em>not</em> necessarily mean the drug caused the problem — only that it was reported while taking the drug.</p>
+    <p><strong>Serious outcomes</strong> include hospitalization, disability, life-threatening events, or death. These are distinguished from non-serious outcomes in the severity charts.</p>
+    <p><strong>Report counts</strong> do not represent how common a reaction is in the general population. A drug taken by millions may have more reports simply because more people use it.</p>
+    <p><strong>Drug classes</strong> are approximate groupings based on common medication types. Comparisons within a class can reveal relative safety profiles, but always consult a healthcare professional.</p>
+    <p><strong>Data currency:</strong> OpenFDA is updated quarterly. Some recent events may not yet appear.</p>
+  </div>
+</div>
+
+<!-- PAGE: SEARCH -->
+<div class="page active" id="page-search">
+  <div class="page-title">Drug Adverse Event Search</div>
+  <div class="page-sub">Search FDA reports for any drug to explore safety data, reactions, and outcomes.</div>
+
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder="Enter a drug name (e.g. ibuprofen, metformin, atorvastatin...)" onkeydown="if(event.key==='Enter')searchDrug()">
+    <button class="btn-primary" onclick="searchDrug()" id="search-btn">Search</button>
+  </div>
+
+  <div style="margin-bottom: 1.5rem;">
+    <span style="font-size: 12px; color: var(--muted); margin-right: 8px;">Quick searches:</span>
+    <span class="pill-tag" style="cursor:pointer" onclick="quickSearch('ibuprofen')">ibuprofen <button onclick="event.stopPropagation(); quickSearch('ibuprofen')">→</button></span>
+    <span class="pill-tag" style="cursor:pointer" onclick="quickSearch('metformin')">metformin <button>→</button></span>
+    <span class="pill-tag" style="cursor:pointer" onclick="quickSearch('atorvastatin')">atorvastatin <button>→</button></span>
+    <span class="pill-tag" style="cursor:pointer" onclick="quickSearch('lisinopril')">lisinopril <button>→</button></span>
+    <span class="pill-tag" style="cursor:pointer" onclick="quickSearch('sertraline')">sertraline <button>→</button></span>
+  </div>
+
+  <div class="loading" id="search-loading">
+    <div class="spinner"></div>
+    Fetching FDA adverse event data...
+  </div>
+
+  <div id="search-results"></div>
+</div>
+
+<!-- PAGE: VISUAL STORIES -->
+<div class="page" id="page-visual">
+  <div class="page-title">Visual Storytelling</div>
+  <div class="page-sub">Explore patterns in adverse event data — timelines, severity breakdowns, and reaction networks.</div>
+
+  <div class="search-row">
+    <input type="text" id="visual-input" placeholder="Enter a drug name to visualize..." onkeydown="if(event.key==='Enter')visualizeDrug()">
+    <button class="btn-primary" onclick="visualizeDrug()" id="visual-btn">Visualize</button>
+  </div>
+
+  <div class="loading" id="visual-loading">
+    <div class="spinner"></div>
+    Generating visual story...
+  </div>
+
+  <div id="visual-results">
+    <div class="empty-state">
+      <div class="icon">◈</div>
+      <h3>Enter a drug above to begin</h3>
+      <p style="font-size:13px; color:var(--muted); max-width:380px; margin:0 auto;">You'll see timelines, severity rings, top reaction charts, and more — all from real FDA data.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: DRUG CLASSES -->
+<div class="page" id="page-classes">
+  <div class="page-title">Drug Class Explorer</div>
+  <div class="page-sub">Compare safety profiles across entire medication classes. Select a class to explore its members.</div>
+
+  <div class="class-grid" id="class-grid"></div>
+
+  <div class="loading" id="classes-loading">
+    <div class="spinner"></div>
+    Loading class data from FDA...
+  </div>
+
+  <div id="classes-results"></div>
+</div>
+
+<script>
+const FDABASE = 'https://api.fda.gov/drug/event.json';
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function openHelp() { document.getElementById('help-modal').classList.add('open'); }
+function closeHelp() { document.getElementById('help-modal').classList.remove('open'); }
+document.getElementById('help-modal').addEventListener('click', function(e) {
+  if(e.target === this) closeHelp();
+});
+
+function quickSearch(drug) {
+  document.getElementById('search-input').value = drug;
+  searchDrug();
+}
+
+async function fdaFetch(url) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+    mode: 'cors'
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error('FDA ' + res.status + ': ' + errText.slice(0, 300));
+  }
+  return res.json();
+}
+
+// Try 3 search strategies in order until one returns results
+async function fdaSearch(drug, params) {
+  // Build query strings - quotes must be %22, not raw " characters
+  const up = drug.toUpperCase();
+  const lo = drug.toLowerCase();
+  const strategies = [
+    'patient.drug.medicinalproduct:%22' + encodeURIComponent(up) + '%22',
+    'patient.drug.medicinalproduct:%22' + encodeURIComponent(lo) + '%22',
+    'patient.drug.activesubstance.activesubstancename:%22' + encodeURIComponent(up) + '%22',
+    'patient.drug.openfda.generic_name:%22' + encodeURIComponent(lo) + '%22',
+    'patient.drug.openfda.brand_name:%22' + encodeURIComponent(lo) + '%22',
+  ];
+  const errors = [];
+  for (const q of strategies) {
+    try {
+      const url = FDABASE + '?search=' + q + '&' + params;
+      console.log('Trying:', url);
+      const data = await fdaFetch(url);
+      if (data.meta && data.meta.results.total > 0) {
+        console.log('Success with:', q, 'total:', data.meta.results.total);
+        return data;
+      }
+    } catch(e) { errors.push(e.message); continue; }
+  }
+  console.error('All strategies failed:', errors);
+  throw new Error('No results found for "' + drug + '". Errors: ' + errors.join(' | '));
+}
+
+// Build a safe search URL using a pre-validated query string
+function buildUrl(baseQ, extra) {
+  return `${FDABASE}?search=${baseQ}&${extra}`;
+}
+
+function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n.toLocaleString(); }
+
+function severityColor(label) {
+  const l = label.toLowerCase();
+  if (l.includes('death') || l.includes('life')) return '#f05a5a';
+  if (l.includes('hospital') || l.includes('disab')) return '#f0a44a';
+  if (l.includes('serious')) return '#f07040';
+  return '#4af0b8';
+}
+
+// ─── SEARCH PAGE ───────────────────────────────────────────────────
+async function searchDrug() {
+  const drug = document.getElementById('search-input').value.trim();
+  if (!drug) return;
+
+  const btn = document.getElementById('search-btn');
+  const loading = document.getElementById('search-loading');
+  const results = document.getElementById('search-results');
+
+  btn.disabled = true;
+  loading.style.display = 'block';
+  results.innerHTML = '';
+
+  try {
+    // Find which search query works for this drug
+    const countData = await fdaSearch(drug, 'limit=1');
+    const total = countData.meta.results.total;
+
+    // Extract the working query from the successful strategy
+    const _up = drug.toUpperCase();
+    const _lo = drug.toLowerCase();
+    const strategies = [
+      'patient.drug.medicinalproduct:%22' + encodeURIComponent(_up) + '%22',
+      'patient.drug.medicinalproduct:%22' + encodeURIComponent(_lo) + '%22',
+      'patient.drug.activesubstance.activesubstancename:%22' + encodeURIComponent(_up) + '%22',
+      'patient.drug.openfda.generic_name:%22' + encodeURIComponent(_lo) + '%22',
+    ];
+    let workingQ = strategies[0];
+    for (const q of strategies) {
+      try {
+        const t = await fdaFetch(FDABASE + '?search=' + q + '&limit=1');
+        if (t.meta && t.meta.results.total > 0) { workingQ = q; break; }
+      } catch(e) {}
+    }
+
+    const [seriousData, reactData] = await Promise.all([
+      fdaFetch(FDABASE + '?search=' + workingQ + '+AND+serious:1&limit=1').catch(() => ({meta:{results:{total:0}}})),
+      fdaFetch(FDABASE + '?search=' + workingQ + '&count=patient.reaction.reactionmeddrapt.exact&limit=15')
+    ]);
+
+    const serious = seriousData.meta.results.total;
+    const reactions = reactData.results || [];
+
+    let genderData = null;
+    try {
+      genderData = await fdaFetch(FDABASE + '?search=' + workingQ + '&count=patient.patientsex&limit=3');
+    } catch(e) {}
+
+    let ageData = null;
+    try {
+      ageData = await fdaFetch(FDABASE + '?search=' + workingQ + '&count=patient.patientonsetage&limit=10');
+    } catch(e) {}
+
+    const seriousPct = total > 0 ? Math.round((serious / total) * 100) : 0;
+
+    // Build gender map
+    let genderMap = {};
+    if (genderData && genderData.results) {
+      const gmap = {0:'Unknown', 1:'Male', 2:'Female'};
+      genderData.results.forEach(g => { genderMap[gmap[g.term] || g.term] = g.count; });
+    }
+
+    const topReactions = reactions.slice(0, 10);
+    const maxCount = topReactions[0]?.count || 1;
+
+    const reactionColors = ['#4af0b8','#4af0b8','#7cf5d0','#7cf5d0','#7cf5d0','#a0f5df','#a0f5df','#a0f5df','#b8f5e4','#b8f5e4'];
+
+    results.innerHTML = `
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-family: var(--font-display); font-size: 1.6rem; color: var(--text); margin-bottom: 4px; font-weight:400;">${drug.charAt(0).toUpperCase() + drug.slice(1)}</div>
+        <div style="font-size: 13px; color: var(--muted);">Adverse event reports in FDA FAERS database</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-chip">
+          <div class="label">Total Reports</div>
+          <div class="value">${fmt(total)}</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Serious Reports</div>
+          <div class="value ${seriousPct > 50 ? 'danger' : seriousPct > 25 ? 'warn' : ''}">${fmt(serious)}</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Serious Rate</div>
+          <div class="value ${seriousPct > 50 ? 'danger' : seriousPct > 25 ? 'warn' : ''}">${seriousPct}%</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Unique Reactions</div>
+          <div class="value info">${fmt(reactions.length)}+</div>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-bottom: 1.5rem;">
+        <div class="card">
+          <div class="card-title">Top 10 Reported Reactions</div>
+          <div class="bar-list">
+            ${topReactions.map((r, i) => `
+              <div class="bar-item">
+                <div class="bar-label-row">
+                  <span class="bar-label">${r.term}</span>
+                  <span class="bar-count">${r.count.toLocaleString()}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width: ${Math.round((r.count/maxCount)*100)}%; background: ${reactionColors[i]};"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="card">
+            <div class="card-title">Serious vs Non-Serious</div>
+            <div class="chart-wrap" style="height: 180px;">
+              <canvas id="serious-chart"></canvas>
+            </div>
+          </div>
+          ${Object.keys(genderMap).length > 0 ? `
+          <div class="card">
+            <div class="card-title">Patient Sex Distribution</div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              ${Object.entries(genderMap).map(([label, count]) => `
+                <div style="text-align: center;">
+                  <div style="font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent);">${fmt(count)}</div>
+                  <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">${label}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-title">All Reported Reactions</div>
+        <div class="reactions-wrap">
+          ${reactions.map(r => `<span class="reaction-chip">${r.term}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="info-box">
+        ⓘ Showing top results from the FDA Adverse Event Reporting System. Reports are voluntary and do not prove causation. For medical advice, consult a licensed healthcare provider.
+      </div>
+    `;
+
+    // Render doughnut chart
+    const ctx = document.getElementById('serious-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Serious', 'Non-Serious'],
+        datasets: [{
+          data: [serious, total - serious],
+          backgroundColor: ['#f05a5a', '#4af0b8'],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#8892a4',
+              font: { size: 11, family: 'Outfit' },
+              padding: 12,
+              boxWidth: 10
+            }
+          }
+        }
+      }
+    });
+
+  } catch(err) {
+    const isFileProt = location.protocol === 'file:';
+    results.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠</div>
+        <h3>${isFileProt ? 'File:// not supported' : 'No results found'}</h3>
+        ${isFileProt
+          ? `<p style="font-size:13px;color:var(--muted);">You opened this as a local file. Browsers block API calls from <code style="font-family:var(--font-mono);font-size:12px;">file://</code> pages.</p>
+             <p style="font-size:13px;color:var(--muted);margin-top:8px;">Open a terminal in the same folder and run:</p>
+             <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--font-mono);font-size:13px;color:var(--accent);text-align:left;">python -m http.server 8080</div>
+             <p style="font-size:13px;color:var(--muted);margin-top:8px;">Then open <a href="http://localhost:8080" style="color:var(--accent);">http://localhost:8080</a> in your browser.</p>`
+          : `<p style="font-size:13px;color:var(--muted);">Error: ${err.message}</p>
+             <p style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--font-mono);">Check browser console (F12) for details.</p>`
+        }
+      </div>`;
+    console.error('Search error:', err);
+  }
+
+  loading.style.display = 'none';
+  btn.disabled = false;
+}
+
+// ─── VISUAL STORIES PAGE ──────────────────────────────────────────
+async function visualizeDrug() {
+  const drug = document.getElementById('visual-input').value.trim();
+  if (!drug) return;
+
+  const btn = document.getElementById('visual-btn');
+  const loading = document.getElementById('visual-loading');
+  const results = document.getElementById('visual-results');
+
+  btn.disabled = true;
+  loading.style.display = 'block';
+  results.innerHTML = '';
+
+  try {
+    // Fetch: total, by-year, seriousness codes, top reactions
+    const totalData = await fdaSearch(drug, 'limit=1');
+    const total = totalData.meta.results.total;
+
+    const _up = drug.toUpperCase();
+    const _lo = drug.toLowerCase();
+    const strategies = [
+      'patient.drug.medicinalproduct:%22' + encodeURIComponent(_up) + '%22',
+      'patient.drug.medicinalproduct:%22' + encodeURIComponent(_lo) + '%22',
+      'patient.drug.activesubstance.activesubstancename:%22' + encodeURIComponent(_up) + '%22',
+      'patient.drug.openfda.generic_name:%22' + encodeURIComponent(_lo) + '%22',
+    ];
+    let workingQ = strategies[0];
+    for (const q of strategies) {
+      try {
+        const t = await fdaFetch(FDABASE + '?search=' + q + '&limit=1');
+        if (t.meta && t.meta.results.total > 0) { workingQ = q; break; }
+      } catch(e) {}
+    }
+
+    const [yearData, reactData, outData] = await Promise.all([
+      fdaFetch(FDABASE + '?search=' + workingQ + '&count=receivedate&limit=200').catch(() => null),
+      fdaFetch(FDABASE + '?search=' + workingQ + '&count=patient.reaction.reactionmeddrapt.exact&limit=20'),
+      fdaFetch(FDABASE + '?search=' + workingQ + '&count=serious&limit=5').catch(() => null)
+    ]);
+    const reactions = reactData.results || [];
+
+    // Build yearly timeline
+    let yearlyMap = {};
+    if (yearData && yearData.results) {
+      yearData.results.forEach(d => {
+        const yr = String(d.time).substring(0, 4);
+        if (yr >= '2004' && yr <= '2024') {
+          yearlyMap[yr] = (yearlyMap[yr] || 0) + d.count;
+        }
+      });
+    }
+
+    const years = Object.keys(yearlyMap).sort();
+    const yearlyCounts = years.map(y => yearlyMap[y]);
+    const peakYear = years[yearlyCounts.indexOf(Math.max(...yearlyCounts))] || 'N/A';
+    const peakCount = Math.max(...yearlyCounts);
+
+    // Seriousness
+    let seriousCount = 0, nonSeriousCount = 0;
+    if (outData && outData.results) {
+      outData.results.forEach(d => {
+        if (d.term == 1) seriousCount = d.count;
+        if (d.term == 2) nonSeriousCount = d.count;
+      });
+    }
+    if (!seriousCount && !nonSeriousCount) {
+      // fallback: use serious search
+      try {
+        const s = await fdaFetch(FDABASE + '?search=' + workingQ + '+AND+serious:1&limit=1');
+        seriousCount = s.meta.results.total;
+        nonSeriousCount = total - seriousCount;
+      } catch(e) {}
+    }
+
+    // Reaction severity categorization
+    const seriousKeywords = ['death', 'cardiac arrest', 'anaphylaxis', 'liver failure', 'sepsis', 'stroke', 'pulmonary', 'haemorrhage', 'hemorrhage', 'renal failure'];
+    const seriousReactions = reactions.filter(r => seriousKeywords.some(k => r.term.toLowerCase().includes(k)));
+    const mildReactions = reactions.filter(r => !seriousKeywords.some(k => r.term.toLowerCase().includes(k)));
+
+    const top5 = reactions.slice(0, 5);
+    const maxR = top5[0]?.count || 1;
+
+    results.innerHTML = `
+      <div style="font-family: var(--font-display); font-size: 1.6rem; color: var(--text); margin-bottom: 0.25rem; font-weight:400;">${drug.charAt(0).toUpperCase() + drug.slice(1)} — Safety Story</div>
+      <div style="font-size: 13px; color: var(--muted); margin-bottom: 1.5rem;">${fmt(total)} total adverse event reports in FDA FAERS</div>
+
+      ${years.length > 0 ? `
+      <div class="card" style="margin-bottom: 1rem;">
+        <div class="card-title">Reporting timeline — reports over time</div>
+        <div class="chart-wrap">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">
+          Peak reporting: <span style="color: var(--accent); font-family: var(--font-mono);">${peakYear}</span> with <span style="color: var(--accent); font-family: var(--font-mono);">${fmt(peakCount)}</span> reports. Increases often reflect growing use or new safety signals.
+        </div>
+      </div>` : ''}
+
+      <div class="two-col" style="margin-bottom: 1rem;">
+        <div class="card">
+          <div class="card-title">Severity breakdown</div>
+          <div class="chart-wrap" style="height: 220px;">
+            <canvas id="severity-chart"></canvas>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#f05a5a;"></div> Serious</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#4af0b8;"></div> Non-Serious</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Top 5 reactions — frequency</div>
+          ${top5.map((r, i) => `
+            <div class="bar-item" style="margin-bottom: 10px;">
+              <div class="bar-label-row">
+                <span class="bar-label" style="font-size: 13px;">${r.term}</span>
+                <span class="bar-count">${r.count.toLocaleString()}</span>
+              </div>
+              <div class="bar-track" style="height: 8px;">
+                <div class="bar-fill" style="width: ${Math.round((r.count/maxR)*100)}%; background: ${['#4af0b8','#4ec5ff','#a78bfa','#f0a44a','#f05a5a'][i]};"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      ${seriousReactions.length > 0 ? `
+      <div class="card" style="margin-bottom: 1rem; border-color: rgba(240,90,90,0.25);">
+        <div class="card-title" style="color: #f07070;">Potentially serious reactions detected</div>
+        <div class="reactions-wrap">
+          ${seriousReactions.map(r => `<span class="reaction-chip" style="border-color: rgba(240,90,90,0.3); color: #f09090;">${r.term} <span style="color: var(--muted); font-family: var(--font-mono); font-size: 10px;">${r.count.toLocaleString()}</span></span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <div class="card" style="margin-bottom: 1rem;">
+        <div class="card-title">All other reported reactions</div>
+        <div class="reactions-wrap">
+          ${mildReactions.map(r => `<span class="reaction-chip">${r.term}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="info-box">
+        ⓘ Timeline patterns can reflect drug market entry, label changes, media coverage, or genuine safety signals. Correlation ≠ causation.
+      </div>
+    `;
+
+    // Timeline chart
+    if (years.length > 0) {
+      new Chart(document.getElementById('timeline-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [{
+            label: 'Reports',
+            data: yearlyCounts,
+            borderColor: '#4af0b8',
+            backgroundColor: 'rgba(74,240,184,0.08)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: '#4af0b8'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8892a4', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#8892a4', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          }
+        }
+      });
+    }
+
+    // Severity doughnut
+    new Chart(document.getElementById('severity-chart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Serious', 'Non-Serious'],
+        datasets: [{
+          data: [seriousCount || 0, nonSeriousCount || (total - seriousCount) || total],
+          backgroundColor: ['#f05a5a', '#4af0b8'],
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+      }
+    });
+
+  } catch(err) {
+    results.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠</div>
+        <h3>No data found</h3>
+        <p style="font-size:13px; color:var(--muted);">Try a generic drug name (e.g., "aspirin" instead of "Bayer").</p>
+      </div>`;
+  }
+
+  loading.style.display = 'none';
+  btn.disabled = false;
+}
+
+// ─── DRUG CLASSES PAGE ────────────────────────────────────────────
+const DRUG_CLASSES = [
+  { name: 'SSRIs', icon: '🧠', desc: 'Antidepressants (serotonin)', drugs: ['sertraline','fluoxetine','escitalopram','paroxetine','citalopram'] },
+  { name: 'Statins', icon: '🫀', desc: 'Cholesterol medications', drugs: ['atorvastatin','simvastatin','rosuvastatin','pravastatin','lovastatin'] },
+  { name: 'ACE Inhibitors', icon: '💊', desc: 'Blood pressure medications', drugs: ['lisinopril','enalapril','ramipril','captopril','benazepril'] },
+  { name: 'NSAIDs', icon: '💉', desc: 'Anti-inflammatory pain relief', drugs: ['ibuprofen','naproxen','celecoxib','diclofenac','meloxicam'] },
+  { name: 'Biguanides', icon: '🩸', desc: 'Diabetes medications', drugs: ['metformin'] },
+  { name: 'Beta Blockers', icon: '❤️', desc: 'Heart rate & BP control', drugs: ['metoprolol','atenolol','carvedilol','propranolol','bisoprolol'] },
+  { name: 'PPIs', icon: '🔬', desc: 'Proton pump inhibitors', drugs: ['omeprazole','pantoprazole','esomeprazole','lansoprazole','rabeprazole'] },
+  { name: 'Anticoagulants', icon: '🩺', desc: 'Blood thinners', drugs: ['warfarin','apixaban','rivaroxaban','dabigatran','enoxaparin'] }
+];
+
+let selectedClass = null;
+let classCharts = {};
+
+function initClassGrid() {
+  const grid = document.getElementById('class-grid');
+  grid.innerHTML = DRUG_CLASSES.map((cls, i) => `
+    <div class="class-card" id="cls-${i}" onclick="selectClass(${i})">
+      <div class="class-icon">${cls.icon}</div>
+      <div class="class-name">${cls.name}</div>
+      <div class="class-desc">${cls.desc}</div>
+      <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">${cls.drugs.length} drugs</div>
+    </div>
+  `).join('');
+}
+
+async function selectClass(idx) {
+  if (selectedClass === idx) return;
+  selectedClass = idx;
+
+  document.querySelectorAll('.class-card').forEach((c, i) => {
+    c.classList.toggle('selected', i === idx);
+  });
+
+  const cls = DRUG_CLASSES[idx];
+  const loading = document.getElementById('classes-loading');
+  const results = document.getElementById('classes-results');
+
+  loading.style.display = 'block';
+  results.innerHTML = '';
+
+  // destroy old charts
+  Object.values(classCharts).forEach(c => c.destroy());
+  classCharts = {};
+
+  try {
+    const drugData = await Promise.all(cls.drugs.map(async drug => {
+      try {
+        const totalD = await fdaSearch(drug, 'limit=1');
+        const tot = totalD.meta.results.total;
+        const _dup = drug.toUpperCase();
+        const _dlo = drug.toLowerCase();
+        const strategies = [
+          'patient.drug.medicinalproduct:%22' + encodeURIComponent(_dup) + '%22',
+          'patient.drug.medicinalproduct:%22' + encodeURIComponent(_dlo) + '%22',
+          'patient.drug.activesubstance.activesubstancename:%22' + encodeURIComponent(_dup) + '%22',
+          'patient.drug.openfda.generic_name:%22' + encodeURIComponent(_dlo) + '%22',
+        ];
+        let wq = strategies[0];
+        for (const q of strategies) {
+          try { const t = await fdaFetch(FDABASE + '?search=' + q + '&limit=1'); if(t.meta&&t.meta.results.total>0){wq=q;break;} } catch(e){}
+        }
+        const seriousD = await fdaFetch(FDABASE + '?search=' + wq + '+AND+serious:1&limit=1').catch(()=>({meta:{results:{total:0}}}));
+        return { drug, total: tot, serious: seriousD.meta.results.total };
+      } catch(e) {
+        return { drug, total: 0, serious: 0 };
+      }
+    }));
+
+    const sorted = drugData.filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+    const maxTotal = sorted[0]?.total || 1;
+
+    results.innerHTML = `
+      <div style="font-family: var(--font-display); font-size: 1.4rem; color: var(--text); margin-bottom: 0.25rem; font-weight:400;">${cls.icon} ${cls.name} Class — Safety Comparison</div>
+      <div style="font-size: 13px; color: var(--muted); margin-bottom: 1.5rem;">${cls.desc} · Comparing ${sorted.length} medications</div>
+
+      <div class="two-col" style="margin-bottom: 1.5rem;">
+        <div class="card">
+          <div class="card-title">Total reports by drug</div>
+          <div class="chart-wrap" style="height: ${sorted.length * 40 + 40}px;">
+            <canvas id="class-bar-chart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Serious rate comparison</div>
+          <div class="chart-wrap" style="height: ${sorted.length * 40 + 40}px;">
+            <canvas id="class-serious-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-title">Side-by-side data table</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Drug</th>
+              <th>Total Reports</th>
+              <th>Serious</th>
+              <th>Serious Rate</th>
+              <th>Risk Level</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(d => {
+              const rate = d.total > 0 ? Math.round((d.serious / d.total) * 100) : 0;
+              const risk = rate > 60 ? 'serious' : rate > 30 ? 'moderate' : 'mild';
+              const riskLabel = rate > 60 ? 'High' : rate > 30 ? 'Moderate' : 'Low';
+              return `<tr>
+                <td style="font-weight: 500; color: var(--text);">${d.drug}</td>
+                <td style="font-family: var(--font-mono);">${fmt(d.total)}</td>
+                <td style="font-family: var(--font-mono);">${fmt(d.serious)}</td>
+                <td style="font-family: var(--font-mono);">${rate}%</td>
+                <td><span class="badge ${risk}">${riskLabel}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        ⓘ Differences in report counts often reflect market share and how long a drug has been available, not just safety. A drug with 10x more reports may simply be 10x more prescribed.
+      </div>
+    `;
+
+    // Bar chart
+    classCharts.bar = new Chart(document.getElementById('class-bar-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: sorted.map(d => d.drug),
+        datasets: [{
+          label: 'Total Reports',
+          data: sorted.map(d => d.total),
+          backgroundColor: sorted.map((_, i) => `hsl(${160 + i * 15}, 80%, ${55 - i * 3}%)`),
+          borderWidth: 0,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#8892a4', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#e8eaf6', font: { size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+
+    // Serious % chart
+    classCharts.serious = new Chart(document.getElementById('class-serious-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: sorted.map(d => d.drug),
+        datasets: [{
+          label: 'Serious Rate %',
+          data: sorted.map(d => d.total > 0 ? Math.round((d.serious / d.total) * 100) : 0),
+          backgroundColor: sorted.map(d => {
+            const r = d.total > 0 ? (d.serious / d.total) : 0;
+            return r > 0.6 ? '#f05a5a' : r > 0.3 ? '#f0a44a' : '#4af0b8';
+          }),
+          borderWidth: 0,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            max: 100,
+            ticks: { color: '#8892a4', font: { size: 10 }, callback: v => v + '%' },
+            grid: { color: 'rgba(255,255,255,0.04)' }
+          },
+          y: { ticks: { color: '#e8eaf6', font: { size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+
+  } catch(err) {
+    results.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Error loading class data</h3></div>`;
+  }
+
+  loading.style.display = 'none';
+}
+
+// Init
+initClassGrid();
+</script>
+</body>
+</html>
