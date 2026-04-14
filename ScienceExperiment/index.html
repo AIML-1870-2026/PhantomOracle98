@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Science Experiment Generator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #e8f5e9;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: #f1faf2;
+      border-radius: 24px;
+      border: 2px solid #c8e6c9;
+      box-shadow: 0 6px 32px rgba(76,175,80,0.10);
+      padding: 2.25rem;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header-icon {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 0.5rem;
+      animation: wiggle 3s ease-in-out infinite;
+    }
+
+    @keyframes wiggle {
+      0%, 90%, 100% { transform: rotate(0deg); }
+      93% { transform: rotate(-8deg); }
+      96% { transform: rotate(8deg); }
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #2e7d32;
+      margin-bottom: 0.3rem;
+      letter-spacing: -0.3px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #66bb6a;
+      font-weight: 600;
+    }
+
+    .divider {
+      border: none;
+      border-top: 2px dashed #c8e6c9;
+      margin: 1.5rem 0;
+    }
+
+    .field {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #388e3c;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select, textarea, input[type="password"] {
+      width: 100%;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 14px;
+      border: 2px solid #c8e6c9;
+      border-radius: 12px;
+      background: #fff;
+      color: #2e7d32;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    select:focus, textarea:focus, input[type="password"]:focus {
+      border-color: #66bb6a;
+      box-shadow: 0 0 0 3px rgba(102,187,106,0.2);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 130px;
+      line-height: 1.6;
+    }
+
+    .chip-hint {
+      font-size: 12px;
+      font-weight: 700;
+      color: #a5d6a7;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .quick-supplies {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Nunito', sans-serif;
+      padding: 5px 13px;
+      border: 2px solid #c8e6c9;
+      border-radius: 20px;
+      cursor: pointer;
+      color: #388e3c;
+      background: #fff;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
+    }
+
+    .chip:hover {
+      background: #e8f5e9;
+      border-color: #81c784;
+      transform: translateY(-1px);
+    }
+
+    .chip:active { transform: scale(0.96); }
+
+    .btn {
+      width: 100%;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 800;
+      font-family: 'Nunito', sans-serif;
+      background: #43a047;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      letter-spacing: 0.3px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn:hover { background: #388e3c; transform: translateY(-1px); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .output-box {
+      margin-top: 1.5rem;
+      padding: 1.4rem;
+      background: #fff;
+      border: 2px solid #c8e6c9;
+      border-radius: 16px;
+      min-height: 100px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: #2e7d32;
+    }
+
+    .output-box.placeholder {
+      color: #a5d6a7;
+      font-style: italic;
+      font-weight: 600;
+    }
+
+    .output-box h1, .output-box h2, .output-box h3 {
+      font-weight: 800;
+      margin: 1rem 0 0.4rem;
+    }
+
+    .output-box h1 { font-size: 20px; color: #2e7d32; }
+    .output-box h2 { font-size: 16px; color: #388e3c; border-bottom: 2px dashed #c8e6c9; padding-bottom: 4px; }
+    .output-box h3 { font-size: 15px; color: #43a047; }
+
+    .output-box ul, .output-box ol {
+      padding-left: 1.5rem;
+      margin: 0.4rem 0;
+    }
+
+    .output-box li { margin: 0.25rem 0; }
+    .output-box strong { font-weight: 800; }
+    .output-box p { margin: 0.5rem 0; }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #81c784;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .dots { display: flex; gap: 5px; }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #66bb6a;
+      animation: bounce 1.2s infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-7px); }
+    }
+
+    .error-msg {
+      color: #c0392b;
+      font-size: 14px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <span class="header-icon">🧪</span>
+    <h1>Science Experiment Generator</h1>
+    <p class="subtitle">✨ Pick your grade & supplies to conjure up a fun experiment! ✨</p>
+  </div>
+  <hr class="divider">
+
+  <div class="field">
+    <label for="apiKey">Enter an API Key:</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-..." />
+  </div>
+
+  <div class="field">
+    <label for="grade">Grade Level</label>
+    <select id="grade">
+      <option value="">— Select a grade level —</option>
+      <option value="K-2">K–2 (Kindergarten–2nd grade)</option>
+      <option value="3-5">3–5 (3rd–5th grade)</option>
+      <option value="6-8">6–8 (Middle school)</option>
+      <option value="9-12">9–12 (High school)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Available Supplies</label>
+    <p class="chip-hint">Quick add common items:</p>
+    <div class="quick-supplies">
+      <span class="chip" onclick="addSupply('Water')">Water</span>
+      <span class="chip" onclick="addSupply('Vinegar')">Vinegar</span>
+      <span class="chip" onclick="addSupply('Baking soda')">Baking soda</span>
+      <span class="chip" onclick="addSupply('Food coloring')">Food coloring</span>
+      <span class="chip" onclick="addSupply('Paper towels')">Paper towels</span>
+      <span class="chip" onclick="addSupply('Clear plastic cups')">Plastic cups</span>
+      <span class="chip" onclick="addSupply('Salt')">Salt</span>
+      <span class="chip" onclick="addSupply('Sugar')">Sugar</span>
+      <span class="chip" onclick="addSupply('Dish soap')">Dish soap</span>
+      <span class="chip" onclick="addSupply('Balloons')">Balloons</span>
+      <span class="chip" onclick="addSupply('Magnifying glass')">Magnifying glass</span>
+      <span class="chip" onclick="addSupply('Ruler')">Ruler</span>
+    </div>
+    <textarea id="supplies" placeholder="Enter supplies you have available (one per line)&#10;Example:&#10;Water&#10;Food coloring&#10;Paper towels&#10;Clear plastic cups"></textarea>
+  </div>
+
+  <button class="btn" id="genBtn" onclick="generate()">🧪 Generate Experiment!</button>
+
+  <div class="output-box placeholder" id="output">
+    No experiment generated yet. Select your options and click "Generate Experiment!" 🌱
+  </div>
+</div>
+
+<script>
+  function addSupply(item) {
+    const ta = document.getElementById('supplies');
+    const current = ta.value.trim();
+    const lines = current ? current.split('\n') : [];
+    if (!lines.includes(item)) {
+      ta.value = current ? current + '\n' + item : item;
+    }
+  }
+
+  function markdownToHtml(md) {
+    let html = md
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Convert numbered lists
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, (m) => '<ol>' + m + '</ol>');
+    html = html.replace(/<\/ol>\s*<ol>/g, '');
+
+    // Convert bullet lists
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>(?!.*<li>)[\s\S]*?<\/li>)/g, (m) => {
+      if (!m.startsWith('<ol>')) return '<ul>' + m + '</ul>';
+      return m;
+    });
+
+    // Wrap plain paragraphs
+    html = html.split('\n\n').map(block => {
+      block = block.trim();
+      if (!block) return '';
+      if (/^<[huo]/.test(block)) return block;
+      return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+
+    return html;
+  }
+
+  async function generate() {
+    const grade = document.getElementById('grade').value;
+    const supplies = document.getElementById('supplies').value.trim();
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const btn = document.getElementById('genBtn');
+    const out = document.getElementById('output');
+
+    if (!apiKey) {
+      out.className = 'output-box';
+      out.innerHTML = '<span class="error-msg">Please enter your Anthropic API key.</span>';
+      return;
+    }
+
+    if (!grade) {
+      out.className = 'output-box';
+      out.innerHTML = '<span class="error-msg">Please select a grade level.</span>';
+      return;
+    }
+    if (!supplies) {
+      out.className = 'output-box';
+      out.innerHTML = '<span class="error-msg">Please enter at least one supply.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    out.className = 'output-box';
+    out.innerHTML = `
+      <div class="loading">
+        <div class="dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        <span>Cooking up your experiment… 🧪</span>
+      </div>`;
+
+    const prompt = `You are a K-12 science educator. Generate a single, engaging science experiment for grade level ${grade} using ONLY the following available supplies:\n\n${supplies}\n\nFormat your response with these sections:\n# [Experiment Name]\n## Overview\n## Learning Objectives\n## Materials Needed (from the list above)\n## Procedure (numbered steps)\n## What's Happening? (scientific explanation appropriate for ${grade})\n## Discussion Questions\n\nMake it fun, safe, and age-appropriate for grade ${grade}. Only use supplies from the provided list.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'API request failed');
+      }
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || 'No response received.';
+      out.className = 'output-box';
+      out.innerHTML = markdownToHtml(text);
+    } catch (err) {
+      out.className = 'output-box';
+      out.innerHTML = `<span class="error-msg">Error: ${err.message}</span>`;
+    }
+
+    btn.disabled = false;
+  }
+</script>
+
+</body>
+</html>
