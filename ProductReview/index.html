@@ -1,511 +1,647 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scamazon — Product Review Generator</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-  /* Scamazon color palette — Amazon app icon:
-     Cardboard tan:  #C8A96E  (header bg)
-     Teal accent:    #00A8CC  (tape strip / highlights)
-     Dark teal:      #007A99  (hover states)
-     Page bg:        #E8D5B0  (light tan)
-     Card bg:        #FDF6E9  (cream)
-     Text:           #1A1A1A  (near-black)
-  */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #E8D5B0; min-height: 100vh; color: #1A1A1A; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scamazon</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-  header {
-    background: #C8A96E;
-    padding: 0.8rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 5px solid #00A8CC;
-  }
-  header h1 { color: #1A1A1A; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
-  header h1 span { color: #007A99; }
-  header button {
-    background: #00A8CC;
-    border: none;
-    color: white;
-    padding: 6px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  header button:hover { background: #007A99; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  .container {
-    max-width: 900px;
-    margin: 1.5rem auto;
-    padding: 0 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-  }
+    :root {
+      --blue: #00A8CC;
+      --blue-dark: #0090b0;
+      --blue-light: #e6f7fb;
+      --border: #c9a96e;
+      --text: #5a3e1b;
+      --muted: #8a6a3e;
+      --bg: #f5e9d0;
+      --white: #fdf6e9;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #d97706;
+      --tan: #C8A96E;
+      --tan-dark: #b8904f;
+    }
 
-  .card {
-    background: #FDF6E9;
-    border: 1px solid #C8A96E;
-    border-radius: 8px;
-    padding: 1.5rem;
-  }
-  .card-title {
-    text-align: center;
-    font-size: 0.85rem;
-    color: #7A6040;
-    margin-bottom: 1.2rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    /* NAV */
+    nav {
+      background: var(--tan);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid var(--tan-dark);
+    }
 
-  label { display: block; font-size: 0.85rem; font-weight: 700; color: #1A1A1A; margin-bottom: 5px; }
+    nav h1 { color: var(--white); font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    nav h1 span { color: var(--blue); }
 
-  input[type="text"], select, textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #B8955A;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    background: #FFFDF5;
-    color: #1A1A1A;
-    outline: none;
-    font-family: inherit;
-  }
-  input[type="text"]:focus, select:focus, textarea:focus {
-    border-color: #00A8CC;
-    box-shadow: 0 0 0 3px rgba(0,168,204,0.2);
-  }
-  textarea { resize: vertical; min-height: 120px; }
+    nav button {
+      background: transparent;
+      border: 1.5px solid var(--white);
+      color: var(--white);
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
 
-  .sentiment-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-  .sentiment-label { font-size: 0.85rem; font-weight: 700; color: #1A1A1A; min-width: 80px; }
-  .sentiment-emoji { font-size: 1.2rem; min-width: 24px; text-align: center; }
-  input[type="range"] { flex: 1; accent-color: #00A8CC; }
-  .sentiment-val { font-size: 0.85rem; font-weight: 700; color: #007A99; min-width: 30px; text-align: right; }
-  .sentiment-section-title { font-size: 0.8rem; font-weight: 700; color: #7A6040; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    nav button:hover { background: var(--white); color: var(--tan-dark); }
 
-  .llm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-  .model-status { font-size: 0.8rem; color: #007A99; text-align: center; margin-bottom: 0.8rem; font-weight: 600; }
+    /* MAIN LAYOUT */
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
 
-  .bottom-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
+    /* SECTION CARDS */
+    .card {
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
 
-  .generate-btn {
-    background: #00A8CC;
-    color: white;
-    border: none;
-    padding: 10px 28px;
-    border-radius: 20px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s;
-    white-space: nowrap;
-  }
-  .generate-btn:hover { background: #007A99; }
-  .generate-btn:disabled { background: #ccc; color: #888; cursor: not-allowed; }
+    .card-header {
+      text-align: center;
+      padding: 0.75rem 1.5rem;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1.5px solid var(--border);
+      background: var(--bg);
+      letter-spacing: 0.01em;
+    }
 
-  .review-box {
-    background: #FFFDF5;
-    border: 1px solid #C8A96E;
-    border-radius: 6px;
-    padding: 1rem;
-    min-height: 140px;
-    font-size: 0.9rem;
-    color: #1A1A1A;
-    line-height: 1.6;
-  }
-  .review-box .placeholder { color: #A08050; }
-  .review-box h1, .review-box h2, .review-box h3 { margin: 0.5rem 0; font-size: 1rem; }
-  .review-box p { margin-bottom: 0.6rem; }
-  .review-box strong { font-weight: 600; }
+    .card-body { padding: 1.5rem; }
 
-  .download-btn {
-    display: block;
-    margin: 1rem auto 0;
-    background: #D4B88A;
-    color: #888;
-    border: 1px solid #C8A96E;
-    padding: 9px 24px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: not-allowed;
-    font-family: inherit;
-  }
-  .download-btn.active {
-    background: #00A8CC;
-    color: white;
-    border-color: #00A8CC;
-    cursor: pointer;
-  }
-  .download-btn.active:hover { background: #007A99; border-color: #007A99; }
+    /* GRID */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
 
-  /* About Modal */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal-inner {
-    background: #FDF6E9;
-    border-radius: 8px;
-    padding: 2rem;
-    max-width: 480px;
-    width: 90%;
-    color: #1A1A1A;
-    border-top: 5px solid #00A8CC;
-  }
-  .modal-inner h2 { margin-bottom: 1rem; color: #007A99; font-size: 1.3rem; }
-  .modal-inner p { margin-bottom: 0.8rem; font-size: 0.9rem; line-height: 1.6; }
-  .modal-close {
-    background: #00A8CC;
-    color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 20px;
-    cursor: pointer;
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 700;
-    font-family: inherit;
-  }
-  .modal-close:hover { background: #007A99; }
+    .span-2 { grid-column: span 2; }
 
-  @media (max-width: 600px) {
-    .grid-2, .llm-row { grid-template-columns: 1fr; }
-    .bottom-row { flex-direction: column; align-items: stretch; }
-    .generate-btn { width: 100%; text-align: center; }
-  }
-</style>
+    /* FIELDS */
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    input[type="text"], select, textarea {
+      font-family: inherit;
+      font-size: 14px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fef9f0;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,168,204,0.15);
+    }
+
+    textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    /* SLIDER FIELD */
+    .slider-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-label-row label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .slider-value { font-size: 13px; font-weight: 700; color: var(--text); min-width: 32px; text-align: right; }
+
+    .slider-track { position: relative; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--blue);
+      border: 2px solid var(--white);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      cursor: pointer;
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* SENTIMENT EMOJI */
+    .sentiment-emoji { font-size: 22px; }
+
+    /* MODEL STATUS */
+    .model-status {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--green);
+      margin-bottom: 1rem;
+    }
+
+    /* GENERATE BTN */
+    .generate-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-generate {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-generate:hover { background: var(--blue-dark); }
+    .btn-generate:active { transform: scale(0.98); }
+    .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* OUTPUT */
+    .output-area {
+      min-height: 120px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text);
+    }
+
+    .output-area.placeholder { color: #94a3b8; font-style: italic; }
+
+    .output-area h1, .output-area h2, .output-area h3 { font-weight: 700; margin: 1rem 0 0.4rem; color: var(--text); }
+    .output-area h1 { font-size: 18px; }
+    .output-area h2 { font-size: 15px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .output-area h3 { font-size: 14px; }
+    .output-area ul, .output-area ol { padding-left: 1.5rem; margin: 0.4rem 0; }
+    .output-area li { margin: 0.2rem 0; }
+    .output-area strong { font-weight: 600; }
+    .output-area p { margin: 0.5rem 0; }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dots { display: flex; gap: 4px; }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      animation: bounce 1.2s infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-7px); }
+    }
+
+    .error-msg { color: var(--red); font-size: 14px; font-weight: 500; }
+
+    /* API KEY */
+    input[type="password"] {
+      font-family: inherit;
+      font-size: 14px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fef9f0;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,168,204,0.15);
+    }
+
+    /* SENTIMENT MULTI */
+    .sentiment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 2rem;
+      margin-top: 0.5rem;
+    }
+
+    .aspect-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* OVERALL SENTIMENT */
+    .overall-sentiment-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .span-2 { grid-column: span 1; }
+      .sentiment-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-<header>
-  <h1>Scam<span>azon</span></h1>
-  <button onclick="document.getElementById('aboutModal').classList.add('open')">About</button>
-</header>
+<nav>
+  <h1>Scam<span>a</span>zon</h1>
+  <button onclick="showAbout()">About</button>
+</nav>
 
-<div class="container">
+<main>
 
-  <!-- Basic Product Info -->
+  <!-- API KEY -->
   <div class="card">
-    <div class="card-title">Basic Product Information</div>
-    <div class="grid-2" style="margin-bottom:1rem;">
-      <div>
-        <label for="productName">Product Name:</label>
-        <input type="text" id="productName" placeholder="e.g., Wireless Headphones">
+    <div class="card-header">API Configuration</div>
+    <div class="card-body">
+      <div class="field">
+        <label for="apiKey">OpenAI API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." />
       </div>
-      <div>
-        <label for="category">Category:</label>
-        <select id="category">
-          <option>Electronics</option>
-          <option>Books</option>
-          <option>Clothing</option>
-          <option>Home &amp; Kitchen</option>
-          <option>Sports &amp; Outdoors</option>
-          <option>Beauty &amp; Personal Care</option>
-          <option>Toys &amp; Games</option>
-          <option>Food &amp; Grocery</option>
-          <option>Software</option>
-          <option>Other</option>
-        </select>
-      </div>
-    </div>
-    <div class="grid-2" style="margin-bottom:1rem;">
-      <div>
-        <label for="length">Length:</label>
-        <select id="length">
-          <option>Short</option>
-          <option>Medium</option>
-          <option>Long</option>
-        </select>
-      </div>
-      <div>
-        <label for="style">Style:</label>
-        <select id="style">
-          <option>Conversational</option>
-          <option>Professional</option>
-          <option>Technical</option>
-          <option>Humorous</option>
-          <option>Formal</option>
-        </select>
-      </div>
-    </div>
-    <div>
-      <label for="comments">Comments:</label>
-      <textarea id="comments" placeholder="Include key features, strengths, weaknesses, specific experiences, or any advanced instructions for the review..."></textarea>
     </div>
   </div>
 
-  <!-- LLM + Sentiment -->
+  <!-- BASIC PRODUCT INFO -->
   <div class="card">
-    <div class="card-title">LLM and Sentiment Selection</div>
-    <div class="model-status" id="modelStatus">Models discovered successfully (cached)</div>
-    <div class="llm-row">
-      <div>
-        <label for="llmFamily">LLM Family:</label>
-        <select id="llmFamily" onchange="updateModels()">
-          <option value="anthropic">Anthropic (4 models)</option>
-          <option value="openai">OpenAI (3 models)</option>
-        </select>
+    <div class="card-header">Basic Product Information</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="field">
+          <label for="productName">Product Name:</label>
+          <input type="text" id="productName" placeholder="e.g., Wireless Headphones" />
+        </div>
+        <div class="field">
+          <label for="category">Category:</label>
+          <select id="category">
+            <option>Electronics</option>
+            <option>Clothing &amp; Apparel</option>
+            <option>Home &amp; Kitchen</option>
+            <option>Beauty &amp; Personal Care</option>
+            <option>Sports &amp; Outdoors</option>
+            <option>Books</option>
+            <option>Toys &amp; Games</option>
+            <option>Food &amp; Grocery</option>
+            <option>Automotive</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <!-- LENGTH SLIDER (stretch challenge) -->
+        <div class="slider-field">
+          <div class="slider-label-row">
+            <label>Length:</label>
+            <span class="slider-value" id="lengthLabel">Medium</span>
+          </div>
+          <input type="range" id="lengthSlider" min="0" max="2" step="1" value="1"
+            oninput="updateLengthLabel()"
+            style="background: linear-gradient(to right, #00A8CC 50%, #c9a96e 50%);" />
+          <div class="slider-labels">
+            <span>Short</span><span>Medium</span><span>Long</span>
+          </div>
+        </div>
+
+        <!-- STYLE SLIDER (stretch challenge) -->
+        <div class="slider-field">
+          <div class="slider-label-row">
+            <label>Tone / Style:</label>
+            <span class="slider-value" id="styleLabel">Conversational</span>
+          </div>
+          <input type="range" id="styleSlider" min="0" max="3" step="1" value="1"
+            oninput="updateStyleLabel()"
+            style="background: linear-gradient(to right, #00A8CC 33%, #c9a96e 33%);" />
+          <div class="slider-labels">
+            <span>Formal</span><span>Conversational</span><span>Enthusiastic</span><span>Critical</span>
+          </div>
+        </div>
+
+        <div class="field span-2">
+          <label for="comments">Comments:</label>
+          <textarea id="comments" placeholder="Include key features, strengths, weaknesses, specific experiences, or any advanced instructions for the review..."></textarea>
+        </div>
       </div>
-      <div>
-        <label for="modelSelect">Model:</label>
-        <select id="modelSelect"></select>
-      </div>
-    </div>
-    <div style="width:100%;">
-      <div class="sentiment-section-title">Sentiment by Aspect</div>
-      <div class="sentiment-row">
-        <span class="sentiment-label">Overall</span>
-        <span class="sentiment-emoji" id="emojiOverall">😐</span>
-        <input type="range" min="0" max="100" value="50" id="sliderOverall" oninput="updateSlider('Overall',this.value)">
-        <span class="sentiment-val" id="valOverall">50</span>
-      </div>
-      <div class="sentiment-row">
-        <span class="sentiment-label">Price</span>
-        <span class="sentiment-emoji" id="emojiPrice">😐</span>
-        <input type="range" min="0" max="100" value="50" id="sliderPrice" oninput="updateSlider('Price',this.value)">
-        <span class="sentiment-val" id="valPrice">50</span>
-      </div>
-      <div class="sentiment-row">
-        <span class="sentiment-label">Features</span>
-        <span class="sentiment-emoji" id="emojiFeatures">😐</span>
-        <input type="range" min="0" max="100" value="50" id="sliderFeatures" oninput="updateSlider('Features',this.value)">
-        <span class="sentiment-val" id="valFeatures">50</span>
-      </div>
-      <div class="sentiment-row" style="margin-bottom:0;">
-        <span class="sentiment-label">Usability</span>
-        <span class="sentiment-emoji" id="emojiUsability">😐</span>
-        <input type="range" min="0" max="100" value="50" id="sliderUsability" oninput="updateSlider('Usability',this.value)">
-        <span class="sentiment-val" id="valUsability">50</span>
-      </div>
-    </div>
-    <div style="display:flex; justify-content:flex-end; margin-top:1rem;">
-      <button class="generate-btn" id="generateBtn" onclick="generateReview()">Generate Review</button>
     </div>
   </div>
 
-  <!-- Generated Review -->
+  <!-- LLM + SENTIMENT -->
   <div class="card">
-    <div class="card-title">Generated Review:</div>
-    <div class="review-box" id="reviewBox">
-      <span class="placeholder">No review generated yet.</span>
+    <div class="card-header">LLM and Sentiment Selection</div>
+    <div class="card-body">
+      <div id="modelStatus" class="model-status" style="display:none;"></div>
+
+      <div class="grid-2" style="margin-bottom: 1.5rem;">
+        <div class="field">
+          <label for="modelSelect">Model:</label>
+          <select id="modelSelect">
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
+            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <!-- placeholder for alignment -->
+        </div>
+      </div>
+
+      <!-- OVERALL SENTIMENT -->
+      <div class="slider-field" style="margin-bottom: 1.5rem;">
+        <div class="slider-label-row">
+          <label>Overall Sentiment:</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="sentiment-emoji" id="sentimentEmoji">😐</span>
+            <span class="slider-value" id="sentimentValue">50</span>
+          </div>
+        </div>
+        <input type="range" id="sentimentSlider" min="0" max="100" value="50"
+          oninput="updateSentiment()"
+          style="background: linear-gradient(to right, #dc2626, #d97706, #16a34a); cursor:pointer;" />
+        <div class="slider-labels">
+          <span>Very Negative</span><span>Neutral</span><span>Very Positive</span>
+        </div>
+      </div>
+
+      <!-- MULTI-SENTIMENT LAYERS (stretch challenge) -->
+      <div style="border-top: 1px solid var(--border); padding-top: 1.25rem;">
+        <div style="font-size:13px; font-weight:600; color:var(--muted); text-align:center; margin-bottom: 0.75rem;">
+          Sentiment by Aspect <span style="font-weight:400;">(Stretch Challenge)</span>
+        </div>
+        <div class="sentiment-grid">
+          <div class="slider-field">
+            <div class="slider-label-row">
+              <span class="aspect-label">💰 Price</span>
+              <span class="slider-value" id="priceVal">50</span>
+            </div>
+            <input type="range" id="priceSlider" min="0" max="100" value="50"
+              oninput="document.getElementById('priceVal').textContent=this.value; updateSliderColor(this);"
+              style="background: linear-gradient(to right, #dc2626, #d97706, #16a34a);" />
+          </div>
+          <div class="slider-field">
+            <div class="slider-label-row">
+              <span class="aspect-label">⚙️ Features</span>
+              <span class="slider-value" id="featuresVal">50</span>
+            </div>
+            <input type="range" id="featuresSlider" min="0" max="100" value="50"
+              oninput="document.getElementById('featuresVal').textContent=this.value; updateSliderColor(this);"
+              style="background: linear-gradient(to right, #dc2626, #d97706, #16a34a);" />
+          </div>
+          <div class="slider-field">
+            <div class="slider-label-row">
+              <span class="aspect-label">🖱️ Usability</span>
+              <span class="slider-value" id="usabilityVal">50</span>
+            </div>
+            <input type="range" id="usabilitySlider" min="0" max="100" value="50"
+              oninput="document.getElementById('usabilityVal').textContent=this.value; updateSliderColor(this);"
+              style="background: linear-gradient(to right, #dc2626, #d97706, #16a34a);" />
+          </div>
+          <div class="slider-field">
+            <div class="slider-label-row">
+              <span class="aspect-label">🚚 Shipping</span>
+              <span class="slider-value" id="shippingVal">50</span>
+            </div>
+            <input type="range" id="shippingSlider" min="0" max="100" value="50"
+              oninput="document.getElementById('shippingVal').textContent=this.value; updateSliderColor(this);"
+              style="background: linear-gradient(to right, #dc2626, #d97706, #16a34a);" />
+          </div>
+        </div>
+      </div>
+
+      <!-- GENERATE ROW -->
+      <div class="generate-row" style="margin-top: 1.5rem; justify-content: flex-end;">
+        <button class="btn-generate" id="genBtn" onclick="generate()">Generate Review</button>
+      </div>
     </div>
-    <button class="download-btn" id="downloadBtn" onclick="downloadReview()">Download Review</button>
   </div>
 
-</div>
-
-<!-- About Modal -->
-<div class="modal-overlay" id="aboutModal">
-  <div class="modal-inner">
-    <h2>About Scamazon</h2>
-    <p>This Product Review Generator is a dynamic web application that uses Large Language Models (LLMs) to generate product reviews based on your inputs.</p>
-    <p>You can customize the product name, category, review length, writing style, sentiment, and more. The app supports both Anthropic (Claude) and OpenAI models.</p>
-    <p><strong>Note:</strong> AI-generated reviews are for educational and research purposes only. Publishing AI-generated reviews as genuine consumer reviews may violate FTC regulations effective October 21, 2024.</p>
-    <button class="modal-close" onclick="document.getElementById('aboutModal').classList.remove('open')">Close</button>
+  <!-- OUTPUT -->
+  <div class="card">
+    <div class="card-header">Generated Review</div>
+    <div class="card-body">
+      <div class="output-area placeholder" id="output">
+        No review generated yet. Fill in the product details and click "Generate Review".
+      </div>
+    </div>
   </div>
-</div>
+
+</main>
 
 <script>
-  // ── API Keys ──────────────────────────────────────────────────────────────
-  // Load from environment or replace with your keys below.
-  // For local use, you can paste your keys directly here.
-  const ANTHROPIC_API_KEY = "";
-  const OPENAI_API_KEY    = "";
+  // --- SLIDER HELPERS ---
 
-  // ── Model Definitions ─────────────────────────────────────────────────────
-  const MODELS = {
-    anthropic: [
-      { label: "Claude Sonnet 4 (claude-sonnet-4-20250514)",         value: "claude-sonnet-4-20250514" },
-      { label: "Claude Haiku 4.5 (claude-haiku-4-5-20251001)",       value: "claude-haiku-4-5-20251001" },
-      { label: "Claude Opus 4 (claude-opus-4-20250514)",             value: "claude-opus-4-20250514" },
-      { label: "Claude Sonnet 3.7 (claude-sonnet-3-7-20250219)",     value: "claude-sonnet-3-7-20250219" }
-    ],
-    openai: [
-      { label: "GPT-4o (gpt-4o)",             value: "gpt-4o" },
-      { label: "GPT-4o Mini (gpt-4o-mini)",   value: "gpt-4o-mini" },
-      { label: "GPT-3.5 Turbo (gpt-3.5-turbo)", value: "gpt-3.5-turbo" }
-    ]
-  };
+  const lengthOptions = ['Short', 'Medium', 'Long'];
+  const styleOptions = ['Formal', 'Conversational', 'Enthusiastic', 'Critical'];
 
-  // ── Populate model dropdown ───────────────────────────────────────────────
-  function updateModels() {
-    const family = document.getElementById('llmFamily').value;
-    const sel    = document.getElementById('modelSelect');
-    sel.innerHTML = '';
-    MODELS[family].forEach(m => {
-      const opt   = document.createElement('option');
-      opt.value   = m.value;
-      opt.textContent = m.label;
-      sel.appendChild(opt);
-    });
+  function updateLengthLabel() {
+    const val = parseInt(document.getElementById('lengthSlider').value);
+    document.getElementById('lengthLabel').textContent = lengthOptions[val];
+    updateDiscreteSliderColor('lengthSlider', val, lengthOptions.length - 1);
   }
 
-  // ── Sentiment helpers ─────────────────────────────────────────────────────
-  const ASPECTS = ['Overall', 'Price', 'Features', 'Usability'];
-
-  function emojiForVal(v) {
-    if (v < 15) return '😡';
-    if (v < 30) return '😞';
-    if (v < 45) return '😕';
-    if (v < 55) return '😐';
-    if (v < 70) return '🙂';
-    if (v < 85) return '😊';
-    return '😍';
+  function updateStyleLabel() {
+    const val = parseInt(document.getElementById('styleSlider').value);
+    document.getElementById('styleLabel').textContent = styleOptions[val];
+    updateDiscreteSliderColor('styleSlider', val, styleOptions.length - 1);
   }
 
-  function updateSlider(aspect, val) {
-    document.getElementById('val' + aspect).textContent = val;
-    document.getElementById('emoji' + aspect).textContent = emojiForVal(parseInt(val));
+  function updateDiscreteSliderColor(id, val, max) {
+    const pct = (val / max) * 100;
+    document.getElementById(id).style.background =
+      `linear-gradient(to right, #00A8CC ${pct}%, #c9a96e ${pct}%)`;
   }
 
-  function sentimentToText(val) {
-    const v = parseInt(val);
-    if (v < 15) return "extremely negative";
-    if (v < 30) return "negative";
-    if (v < 45) return "slightly negative";
-    if (v < 55) return "neutral";
-    if (v < 70) return "slightly positive";
-    if (v < 85) return "positive";
-    return "extremely positive";
+  function updateSliderColor(slider) {
+    const pct = slider.value;
+    slider.style.background =
+      `linear-gradient(to right, #dc2626, #d97706 ${pct}%, #16a34a ${pct}%)`;
   }
 
-  function getAspectSentiments() {
-    return ASPECTS.map(a => {
-      const val = document.getElementById('slider' + a).value;
-      return `- ${a}: ${sentimentToText(val)} (${val}/100)`;
-    }).join('\n');
+  function updateSentiment() {
+    const val = parseInt(document.getElementById('sentimentSlider').value);
+    document.getElementById('sentimentValue').textContent = val;
+    const emojis = val < 20 ? '😡' : val < 40 ? '😕' : val < 60 ? '😐' : val < 80 ? '😊' : '🤩';
+    document.getElementById('sentimentEmoji').textContent = emojis;
+    updateSliderColor(document.getElementById('sentimentSlider'));
   }
 
-  // ── Main: generate review ─────────────────────────────────────────────────
-  async function generateReview() {
-    const productName = document.getElementById('productName').value.trim() || "this product";
-    const category    = document.getElementById('category').value;
-    const length      = document.getElementById('length').value;
-    const style       = document.getElementById('style').value;
-    const comments    = document.getElementById('comments').value.trim();
-    const family      = document.getElementById('llmFamily').value;
-    const model       = document.getElementById('modelSelect').value;
+  // init slider colors
+  updateLengthLabel();
+  updateStyleLabel();
+  updateSentiment();
 
-    const aspectSentiments = getAspectSentiments();
-    const lengthMap = { Short: "2-3 sentences", Medium: "1-2 paragraphs", Long: "3-4 paragraphs" };
+  // --- MARKDOWN TO HTML ---
+  function markdownToHtml(md) {
+    let html = md
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
 
-    const prompt = `Write a ${style.toLowerCase()} product review for "${productName}" in the ${category} category.
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
 
-Sentiment by aspect:
-${aspectSentiments}
+    html = html.split('\n\n').map(block => {
+      block = block.trim();
+      if (!block) return '';
+      if (/^<[huo]|^<li/.test(block)) {
+        if (block.includes('<li>')) return '<ul>' + block + '</ul>';
+        return block;
+      }
+      return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
 
-Length: ${lengthMap[length]}
-${comments ? `Additional context: ${comments}` : ""}
+    html = html.replace(/<\/ul>\s*<ul>/g, '');
+    return html;
+  }
 
-Write the review as if you are a real customer who has used the product. Reflect each aspect's sentiment naturally in the review — do not list them mechanically. Use markdown formatting where appropriate (bold key points, include a star rating). Do not include a title — just the review text itself.`;
+  // --- ABOUT ---
+  function showAbout() {
+    alert('Product Review Generator\n\nThis tool uses OpenAI\'s language models to generate product reviews based on your inputs.\n\nNote: Per the FTC rule effective October 21, 2024, AI-generated reviews may not be posted as authentic consumer reviews. This tool is for educational purposes only.');
+  }
 
-    // Update UI state
-    const btn = document.getElementById('generateBtn');
-    btn.disabled    = true;
-    btn.textContent = "Generating...";
-    document.getElementById('reviewBox').innerHTML = '<span class="placeholder">Generating review, please wait...</span>';
-    document.getElementById('modelStatus').textContent = `Calling ${family === 'anthropic' ? 'Anthropic' : 'OpenAI'} API...`;
+  // --- GENERATE ---
+  async function generate() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const productName = document.getElementById('productName').value.trim();
+    const category = document.getElementById('category').value;
+    const comments = document.getElementById('comments').value.trim();
+    const model = document.getElementById('modelSelect').value;
+    const length = lengthOptions[parseInt(document.getElementById('lengthSlider').value)];
+    const style = styleOptions[parseInt(document.getElementById('styleSlider').value)];
+    const sentiment = parseInt(document.getElementById('sentimentSlider').value);
+    const priceSentiment = parseInt(document.getElementById('priceSlider').value);
+    const featuresSentiment = parseInt(document.getElementById('featuresSlider').value);
+    const usabilitySentiment = parseInt(document.getElementById('usabilitySlider').value);
+    const shippingSentiment = parseInt(document.getElementById('shippingSlider').value);
+
+    const btn = document.getElementById('genBtn');
+    const out = document.getElementById('output');
+
+    if (!apiKey) { out.className = 'output-area'; out.innerHTML = '<span class="error-msg">Please enter your OpenAI API key.</span>'; return; }
+    if (!productName) { out.className = 'output-area'; out.innerHTML = '<span class="error-msg">Please enter a product name.</span>'; return; }
+
+    btn.disabled = true;
+    out.className = 'output-area';
+    out.innerHTML = `<div class="loading"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><span>Generating review…</span></div>`;
+
+    const sentimentDesc = sentiment < 20 ? 'very negative' : sentiment < 40 ? 'somewhat negative' : sentiment < 60 ? 'neutral/mixed' : sentiment < 80 ? 'mostly positive' : 'very positive';
+    const priceDesc = priceSentiment < 40 ? 'overpriced' : priceSentiment < 60 ? 'fair value' : 'great value';
+    const featuresDesc = featuresSentiment < 40 ? 'disappointing features' : featuresSentiment < 60 ? 'adequate features' : 'excellent features';
+    const usabilityDesc = usabilitySentiment < 40 ? 'difficult to use' : usabilitySentiment < 60 ? 'average usability' : 'very easy to use';
+    const shippingDesc = shippingSentiment < 40 ? 'poor shipping experience' : shippingSentiment < 60 ? 'average shipping' : 'fast and reliable shipping';
+
+    const prompt = `You are writing a product review for educational purposes. Generate a ${length.toLowerCase()}, ${style.toLowerCase()}-toned product review for the following product.
+
+Product Name: ${productName}
+Category: ${category}
+Overall Sentiment: ${sentimentDesc} (score: ${sentiment}/100)
+Aspect Sentiments:
+- Price/Value: ${priceDesc} (${priceSentiment}/100)
+- Features: ${featuresDesc} (${featuresSentiment}/100)
+- Usability: ${usabilityDesc} (${usabilitySentiment}/100)
+- Shipping/Delivery: ${shippingDesc} (${shippingSentiment}/100)
+${comments ? `Additional context: ${comments}` : ''}
+
+Write the review in a ${style.toLowerCase()} tone. The overall sentiment should feel ${sentimentDesc}. Reflect the aspect sentiments naturally throughout the review. Do not include a star rating number or title — just the review text. Format using markdown where appropriate.`;
 
     try {
-      let reviewText = "";
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
 
-      if (family === "anthropic") {
-        // ── Anthropic API ──────────────────────────────────────────────────
-        const res  = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type":      "application/json",
-            "x-api-key":         ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-          },
-          body: JSON.stringify({
-            model:      model,
-            max_tokens: 1000,
-            messages:   [{ role: "user", content: prompt }]
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data));
-        reviewText = data.content?.[0]?.text || "No response received.";
-
-      } else {
-        // ── OpenAI API ─────────────────────────────────────────────────────
-        const res  = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "Authorization": `Bearer ${OPENAI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model:      model,
-            max_tokens: 1000,
-            messages:   [{ role: "user", content: prompt }]
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data));
-        reviewText = data.choices?.[0]?.message?.content || "No response received.";
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'API request failed');
       }
 
-      // Render markdown output
-      document.getElementById('reviewBox').innerHTML = marked.parse(reviewText);
-      document.getElementById('modelStatus').textContent = "Review generated successfully";
-
-      // Enable download
-      const dlBtn        = document.getElementById('downloadBtn');
-      dlBtn.classList.add('active');
-      dlBtn.disabled     = false;
-      dlBtn.dataset.text = reviewText;
-
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || 'No response received.';
+      out.className = 'output-area';
+      out.innerHTML = markdownToHtml(text);
     } catch (err) {
-      document.getElementById('reviewBox').innerHTML =
-        `<span style="color:#c0392b;"><strong>Error:</strong> ${err.message}</span>`;
-      document.getElementById('modelStatus').textContent = "Error generating review";
+      out.className = 'output-area';
+      out.innerHTML = `<span class="error-msg">Error: ${err.message}</span>`;
     }
 
-    btn.disabled    = false;
-    btn.textContent = "Generate Review";
+    btn.disabled = false;
   }
-
-  // ── Download review as .txt ───────────────────────────────────────────────
-  function downloadReview() {
-    const btn = document.getElementById('downloadBtn');
-    if (!btn.classList.contains('active')) return;
-    const text        = btn.dataset.text || "";
-    const productName = document.getElementById('productName').value.trim() || "product";
-    const blob        = new Blob([text], { type: "text/plain" });
-    const a           = document.createElement('a');
-    a.href            = URL.createObjectURL(blob);
-    a.download        = `review-${productName.replace(/\s+/g, '-').toLowerCase()}.txt`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────────────
-  updateModels();
 </script>
 
 </body>
