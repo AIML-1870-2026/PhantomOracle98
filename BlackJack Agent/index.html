@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackjack — AI Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Cinzel:wght@400;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#0a0e1a; --navy-mid:#0f1626; --navy-panel:#111827;
+  --gold:#c8a84b; --gold-light:#e8cc7a; --gold-dim:#7a6020;
+  --gold-glow:rgba(200,168,75,0.15);
+  --cream:#f8f2e2;
+  --red-card:#8b1a1a;
+  --text-primary:#f0e8d0; --text-secondary:#8a7a58;
+  --border:rgba(200,168,75,0.18); --border-bright:rgba(200,168,75,0.45);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Cormorant Garamond',Georgia,serif;background:var(--navy);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+
+/* BG */
+.bg{position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse 90% 70% at 50% -5%,rgba(200,168,75,0.07) 0%,transparent 65%),
+  linear-gradient(180deg,#080c16 0%,#0a0e1a 50%,#0c1220 100%)}
+.bg-grid{position:fixed;inset:0;z-index:0;
+  background-image:repeating-linear-gradient(45deg,rgba(200,168,75,0.013) 0,rgba(200,168,75,0.013) 1px,transparent 1px,transparent 14px),
+  repeating-linear-gradient(-45deg,rgba(200,168,75,0.013) 0,rgba(200,168,75,0.013) 1px,transparent 1px,transparent 14px)}
+.vignette{position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(4,6,12,0.75) 100%)}
+
+/* PAGE BORDER */
+.page-border{position:fixed;inset:10px;z-index:1;border:1px solid var(--border);pointer-events:none}
+.page-border::before{content:'';position:absolute;inset:5px;border:1px solid rgba(200,168,75,0.07)}
+.co{position:absolute;width:24px;height:24px;border-color:var(--gold-dim);border-style:solid}
+.co.tl{top:-1px;left:-1px;border-width:2px 0 0 2px}
+.co.tr{top:-1px;right:-1px;border-width:2px 2px 0 0}
+.co.bl{bottom:-1px;left:-1px;border-width:0 0 2px 2px}
+.co.br{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+
+/* WRAPPER */
+.wrap{position:relative;z-index:10;display:flex;flex-direction:column;min-height:100vh;padding:0 28px 28px}
+
+/* HEADER */
+header{text-align:center;padding:30px 0 18px;position:relative}
+.hr-rule{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.hr-rule::before,.hr-rule::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent)}
+.title{font-family:'Cinzel',serif;font-size:clamp(20px,3.5vw,40px);font-weight:700;letter-spacing:8px;color:var(--gold-light);text-transform:uppercase;text-shadow:0 0 60px rgba(200,168,75,0.2)}
+.subtitle{font-family:'Cormorant Garamond',serif;font-size:12px;letter-spacing:4px;color:var(--text-secondary);margin-top:7px;font-style:italic;font-weight:300}
+.hr-bottom{display:flex;align-items:center;gap:12px;margin-top:16px}
+.hr-bottom::before,.hr-bottom::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,75,0.12),transparent)}
+.suits{font-size:12px;letter-spacing:8px;color:var(--text-secondary);opacity:0.45}
+
+/* SETUP */
+.setup{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;padding:14px 18px;
+  background:rgba(0,0,0,0.28);border:1px solid var(--border);border-radius:2px;margin-bottom:18px;position:relative}
+.setup::before{content:'TABLE SETTINGS';position:absolute;top:-9px;left:18px;
+  font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--gold-dim);background:var(--navy);padding:0 8px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--text-secondary)}
+.fld select,.fld input[type=number]{
+  background:rgba(0,0,0,0.38);border:1px solid var(--border);color:var(--text-primary);
+  padding:8px 13px;border-radius:1px;font-family:'Cormorant Garamond',serif;font-size:15px;
+  outline:none;transition:border-color .22s;min-width:160px;-webkit-appearance:none}
+.fld select:focus,.fld input:focus{border-color:var(--gold)}
+.fld select option{background:#0f1626}
+.upload-lbl{display:inline-flex;align-items:center;gap:7px;background:transparent;
+  border:1px solid var(--border-bright);color:var(--gold);padding:8px 14px;border-radius:1px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:9px;font-weight:600;letter-spacing:2px;transition:all .22s;white-space:nowrap}
+.upload-lbl:hover{background:var(--gold-glow);border-color:var(--gold)}
+.key-pill{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.key-pill.ok{background:rgba(50,110,60,.2);color:#7ecb8a;border:1px solid rgba(50,110,60,.3)}
+.key-pill.none{background:rgba(110,35,35,.2);color:#c07070;border:1px solid rgba(110,35,35,.3)}
+.bal-panel{margin-left:auto;text-align:right}
+.bal-lbl{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--text-secondary);display:block;margin-bottom:3px}
+.bal-val{font-family:'Courier Prime',monospace;font-size:26px;color:var(--gold-light);letter-spacing:2px}
+
+/* GRID */
+.main-grid{display:grid;grid-template-columns:1fr 310px;gap:18px;flex:1}
+
+/* GAME PANEL */
+.game-panel{display:flex;flex-direction:column;gap:14px}
+.pcard{background:rgba(7,10,20,.6);border:1px solid var(--border);border-radius:2px;position:relative}
+.pcard::before{content:attr(data-label);position:absolute;top:-9px;left:14px;
+  font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--gold-dim);
+  background:var(--navy);padding:0 8px;text-transform:uppercase}
+
+/* HANDS */
+.hands-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.hand-sec{background:rgba(7,10,20,.6);padding:18px}
+.hand-nm{font-family:'Cinzel',serif;font-size:9px;letter-spacing:4px;color:var(--text-secondary);
+  margin-bottom:13px;display:flex;align-items:center;gap:10px}
+.hand-nm::after{content:'';flex:1;height:1px;background:var(--border)}
+.cards-row{display:flex;gap:9px;min-height:118px;align-items:flex-start;flex-wrap:wrap}
+.score-tag{display:inline-block;margin-top:11px;font-family:'Courier Prime',monospace;
+  font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);padding-bottom:2px;letter-spacing:1px}
+.bet-tag{display:inline-flex;align-items:center;gap:5px;font-family:'Cinzel',serif;
+  font-size:9px;letter-spacing:2px;color:var(--gold);margin-top:7px;margin-left:10px}
+
+/* CARDS */
+.card{width:68px;height:100px;border-radius:5px;position:relative;
+  font-family:'Cormorant Garamond',serif;flex-shrink:0;
+  animation:dealIn .32s cubic-bezier(.34,1.56,.64,1)}
+@keyframes dealIn{from{opacity:0;transform:translateY(-28px) rotate(-7deg) scale(.82)}to{opacity:1;transform:none}}
+.card.face-up{background:var(--cream);border:1px solid #c8c0a8;
+  box-shadow:2px 4px 14px rgba(0,0,0,.65),inset 0 0 0 1px rgba(255,255,255,.45)}
+.card.face-down{background:var(--navy-mid);border:1px solid var(--border);
+  box-shadow:2px 4px 14px rgba(0,0,0,.65);overflow:hidden}
+.card.face-down::before{content:'';position:absolute;inset:4px;border:1px solid var(--border);border-radius:3px;
+  background:repeating-linear-gradient(45deg,rgba(200,168,75,.05) 0,rgba(200,168,75,.05) 1px,transparent 1px,transparent 8px),
+  repeating-linear-gradient(-45deg,rgba(200,168,75,.05) 0,rgba(200,168,75,.05) 1px,transparent 1px,transparent 8px)}
+.card.face-down::after{content:'✦';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:rgba(200,168,75,.18)}
+.c-tl{position:absolute;top:5px;left:5px;font-size:12px;font-weight:700;line-height:1.18;text-align:center}
+.c-br{position:absolute;bottom:5px;right:5px;font-size:12px;font-weight:700;line-height:1.18;text-align:center;transform:rotate(180deg)}
+.c-mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1}
+.sr{color:var(--red-card)} .sb{color:#18182e}
+
+/* ACTIONS */
+.actions{padding:16px 18px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.btn{font-family:'Cinzel',serif;font-weight:600;font-size:9px;letter-spacing:3px;
+  padding:10px 20px;border-radius:1px;border:1px solid transparent;cursor:pointer;
+  text-transform:uppercase;transition:all .18s;position:relative}
+.btn:disabled{opacity:.28;cursor:not-allowed}
+.btn:not(:disabled):active{transform:scale(.97)}
+.btn-play{background:linear-gradient(135deg,var(--gold-dim),#9a7828,var(--gold-dim));
+  border-color:var(--gold);color:#08060030;flex:1;font-size:11px;padding:13px;letter-spacing:5px;
+  color:rgba(10,8,0,.85)}
+.btn-play:not(:disabled):hover{background:linear-gradient(135deg,var(--gold),var(--gold-light),var(--gold))}
+.btn-hit{background:rgba(25,75,35,.5);border-color:rgba(55,130,65,.38);color:#8aee9a}
+.btn-stand{background:rgba(75,18,18,.5);border-color:rgba(140,38,38,.38);color:#ee9a9a}
+.btn-dbl{background:rgba(65,52,8,.5);border-color:rgba(150,120,18,.38);color:#eedd70}
+.btn-split{background:rgba(18,38,75,.5);border-color:rgba(38,75,150,.38);color:#8ab0ee}
+.btn-ins{background:rgba(45,14,65,.5);border-color:rgba(95,38,130,.38);color:#be8aee}
+.btn-exec{background:rgba(18,55,115,.55);border-color:rgba(55,115,210,.45);color:#88c0ff;letter-spacing:2px}
+.btn-refresh{background:transparent;border-color:var(--border);color:var(--text-secondary);font-size:8px;padding:7px 12px}
+.btn-hit:not(:disabled):hover{background:rgba(28,95,42,.7);border-color:rgba(55,150,75,.65)}
+.btn-stand:not(:disabled):hover{background:rgba(95,22,22,.7);border-color:rgba(165,45,45,.65)}
+.btn-dbl:not(:disabled):hover{background:rgba(85,65,10,.7);border-color:rgba(180,148,28,.65)}
+.btn-split:not(:disabled):hover{background:rgba(22,48,95,.7);border-color:rgba(48,95,190,.65)}
+.btn-ins:not(:disabled):hover{background:rgba(60,18,85,.7);border-color:rgba(115,48,160,.65)}
+.btn-exec:not(:disabled):hover{background:rgba(22,70,140,.7);border-color:rgba(75,135,240,.65)}
+.btn-refresh:hover{border-color:var(--border-bright);color:var(--gold)}
+
+/* STATUS */
+.status-area{padding:16px 18px;border-top:1px solid var(--border)}
+.status-line{font-size:16px;font-style:italic;font-weight:300;color:var(--text-primary);line-height:1.55;min-height:26px}
+.status-line.win{color:#7dcea0} .status-line.lose{color:#cd8080} .status-line.push{color:var(--gold)}
+.rec-row{display:flex;align-items:center;gap:13px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.rec-lbl{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--text-secondary)}
+.rec-val{font-family:'Courier Prime',monospace;font-size:18px;color:#88c4ff;letter-spacing:3px;text-transform:uppercase;min-width:75px}
+
+/* RIGHT PANEL */
+.right-panel{display:flex;flex-direction:column;gap:14px;overflow-y:auto;
+  max-height:calc(100vh - 190px);scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.right-panel::-webkit-scrollbar{width:3px}
+.right-panel::-webkit-scrollbar-thumb{background:var(--gold-dim)}
+
+.sec-lbl{font-family:'Cinzel',serif;font-size:8px;letter-spacing:4px;color:var(--gold-dim);
+  text-transform:uppercase;display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* AI BOX */
+.ai-box{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:1px;padding:13px 15px;
+  font-size:15px;font-style:italic;font-weight:300;line-height:1.72;color:var(--text-primary);
+  min-height:85px;white-space:pre-wrap}
+.ai-box.ph{color:var(--text-secondary)}
+.ai-loading{display:none;align-items:center;gap:8px;margin-bottom:7px;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--text-secondary)}
+.ai-loading.show{display:flex}
+.dots span{animation:blink 1.2s infinite;font-size:14px;color:var(--gold)}
+.dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+
+/* TOGGLES */
+.tog-row{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:1px;overflow:hidden}
+.tog{flex:1;padding:8px 5px;text-align:center;font-family:'Cinzel',serif;font-size:8px;letter-spacing:2px;font-weight:600;
+  background:var(--navy);color:var(--text-secondary);cursor:pointer;transition:all .2s;text-transform:uppercase;border:none;outline:none}
+.tog.active{background:var(--gold-glow);color:var(--gold)}
+.tog:hover:not(.active){background:rgba(200,168,75,.05);color:var(--text-primary)}
+
+/* MATRIX */
+.matrix-wrap{font-family:'Courier Prime',monospace;font-size:9px;overflow-x:auto;
+  padding:10px;background:rgba(0,0,0,.3);border:1px solid var(--border)}
+.m-row{display:flex;gap:2px;margin-bottom:2px}
+.m-cell{width:18px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:1px;font-size:8px;flex-shrink:0}
+.m-H{background:rgba(25,95,42,.34);color:#7acc8a}
+.m-S{background:rgba(115,22,22,.34);color:#cc7a7a}
+.m-D{background:rgba(125,95,8,.34);color:#ccaa3a}
+.m-P{background:rgba(25,55,135,.34);color:#7a9acc}
+.m-lbl{color:var(--text-secondary);width:18px}
+.m-hl{outline:1px solid var(--gold);outline-offset:1px}
+.m-legend{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap}
+.m-leg{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-secondary)}
+.m-dot{width:8px;height:8px;border-radius:1px}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-tile{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:1px;padding:9px 11px}
+.stat-lbl{font-family:'Cinzel',serif;font-size:7px;letter-spacing:2px;color:var(--text-secondary);margin-bottom:3px;text-transform:uppercase;display:block}
+.stat-val{font-family:'Courier Prime',monospace;font-size:21px;color:var(--text-primary)}
+.stat-val.up{color:#7dcea0} .stat-val.dn{color:#cd8080}
+
+/* HISTORY */
+.history{display:flex;flex-direction:column;gap:4px;max-height:165px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.h-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 9px;border-radius:1px;background:rgba(0,0,0,.2);border:1px solid rgba(200,168,75,.05)}
+.h-hand{font-family:'Courier Prime',monospace;font-size:10px;color:var(--text-secondary)}
+.h-res{font-family:'Cinzel',serif;font-size:8px;letter-spacing:2px;font-weight:600}
+.h-res.win{color:#7dcea0} .h-res.lose{color:#cd8080} .h-res.push{color:var(--gold)}
+.h-amt{font-family:'Courier Prime',monospace;font-size:11px}
+
+/* ABOUT */
+.about-btn{position:fixed;top:20px;right:26px;z-index:20;background:transparent;
+  border:1px solid var(--border);color:var(--text-secondary);padding:6px 14px;border-radius:1px;
+  cursor:pointer;font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;transition:all .2s}
+.about-btn:hover{border-color:var(--border-bright);color:var(--gold)}
+
+/* MODAL */
+.modal-wrap{position:fixed;inset:0;z-index:100;background:rgba(4,6,12,.88);
+  display:none;align-items:center;justify-content:center}
+.modal-wrap.open{display:flex}
+.modal{background:var(--navy-panel);border:1px solid var(--border-bright);border-radius:2px;
+  padding:34px 38px;max-width:460px;width:90%;position:relative}
+.modal::before{content:'';position:absolute;inset:6px;border:1px solid rgba(200,168,75,.07);pointer-events:none}
+.modal-title{font-family:'Cinzel',serif;font-size:17px;letter-spacing:4px;color:var(--gold-light);
+  margin-bottom:18px;text-align:center;text-transform:uppercase}
+.modal p{font-size:14px;font-weight:300;line-height:1.8;color:var(--text-secondary);margin-bottom:11px}
+.modal-close{margin-top:22px;display:block;width:100%;background:transparent;
+  border:1px solid var(--border-bright);color:var(--gold);padding:9px;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:4px;cursor:pointer;transition:all .2s}
+.modal-close:hover{background:var(--gold-glow)}
+
+/* TOAST */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);
+  background:var(--navy-panel);border:1px solid var(--border-bright);color:var(--gold);
+  padding:9px 26px;border-radius:1px;font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
+  z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.rule{border:none;border-top:1px solid var(--border);margin:2px 0}
+
+@media(max-width:860px){.main-grid{grid-template-columns:1fr}.right-panel{max-height:none}.hands-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="bg-grid"></div>
+<div class="vignette"></div>
+<div class="page-border"><div class="co tl"></div><div class="co tr"></div><div class="co bl"></div><div class="co br"></div></div>
+
+<button class="about-btn" onclick="document.getElementById('modal').classList.add('open')">About</button>
+
+<div class="wrap">
+  <header>
+    <div class="hr-rule"><div style="font-size:11px;color:var(--gold-dim);letter-spacing:10px">♠ ✦ ♥ ✦ ♦ ✦ ♣</div></div>
+    <div class="title">Blackjack</div>
+    <div class="subtitle">Artificial Intelligence &nbsp;·&nbsp; Strategic Analysis &nbsp;·&nbsp; Monte Carlo Suite</div>
+    <div class="hr-bottom"><div class="suits">♠ &nbsp; ♥ &nbsp; ♦ &nbsp; ♣</div></div>
+  </header>
+
+  <div class="setup">
+    <div class="fld" style="flex-direction:row;align-items:flex-end;gap:9px">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <label style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:var(--text-secondary)">API Key</label>
+        <label class="upload-lbl" for="envFile">↑ &nbsp;Upload .env</label>
+        <input type="file" id="envFile" accept=".env,text/plain" style="display:none" onchange="loadEnv(this)">
+      </div>
+      <span class="key-pill none" id="keyStatus">No key loaded</span>
+    </div>
+    <div class="fld">
+      <label>Model Family</label>
+      <select id="modelFamily" onchange="updateModels()">
+        <option value="">Select family</option>
+        <option value="claude-3-5">Claude 3.5</option>
+        <option value="claude-3">Claude 3</option>
+        <option value="claude-sonnet-4">Claude 4</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label>Model</label>
+      <select id="modelSel"><option value="">Select model</option></select>
+    </div>
+    <div class="fld">
+      <label>Wager</label>
+      <input type="number" id="betInput" value="10" min="1" max="500" style="min-width:0;width:88px">
+    </div>
+    <button class="btn btn-refresh" onclick="showToast('Models refreshed')">↺ &nbsp;Refresh</button>
+    <div class="bal-panel">
+      <span class="bal-lbl">Balance</span>
+      <div class="bal-val" id="balDisplay">$1,000</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="game-panel">
+      <div class="pcard" data-label="The Table">
+        <div class="hands-grid">
+          <div class="hand-sec">
+            <div class="hand-nm">♠ &nbsp;Dealer</div>
+            <div class="cards-row" id="dealerCards"></div>
+            <div><span class="score-tag" id="dealerScore">—</span></div>
+          </div>
+          <div class="hand-sec">
+            <div class="hand-nm">♥ &nbsp;Player</div>
+            <div class="cards-row" id="playerCards"></div>
+            <div>
+              <span class="score-tag" id="playerScore">—</span>
+              <span class="bet-tag" id="betTag">◈ &nbsp;$10</span>
+            </div>
+          </div>
+        </div>
+        <div class="actions" id="actionArea">
+          <button class="btn btn-play" onclick="startHand()">Deal</button>
+        </div>
+        <div class="status-area">
+          <div class="status-line" id="statusLine">Upload your .env file and select a model to begin.</div>
+          <div class="rec-row">
+            <span class="rec-lbl">AI Recommends</span>
+            <span class="rec-val" id="recVal">—</span>
+            <button class="btn btn-exec" id="execBtn" disabled onclick="executeRec()">Execute</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="pcard" data-label="Analysis Depth" style="padding:14px">
+        <div class="tog-row">
+          <button class="tog active" onclick="setTog(this,'explain','basic')">Basic</button>
+          <button class="tog" onclick="setTog(this,'explain','statistical')">Statistical</button>
+          <button class="tog" onclick="setTog(this,'explain','deep')">In-Depth</button>
+        </div>
+      </div>
+      <div class="pcard" data-label="Risk Profile" style="padding:14px">
+        <div class="tog-row">
+          <button class="tog" onclick="setTog(this,'risk','conservative')">Conservative</button>
+          <button class="tog active" onclick="setTog(this,'risk','balanced')">Balanced</button>
+          <button class="tog" onclick="setTog(this,'risk','aggressive')">Aggressive</button>
+        </div>
+      </div>
+      <div class="pcard" data-label="AI Analysis" style="padding:14px">
+        <div class="ai-loading" id="aiLoading">
+          <span style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--text-secondary)">Consulting the oracle</span>
+          <span class="dots"><span>·</span><span>·</span><span>·</span></span>
+        </div>
+        <div class="ai-box ph" id="aiBox">Select a model and deal a hand to receive strategic counsel.</div>
+      </div>
+      <div class="pcard" data-label="Strategy Matrix" id="matrixPanel" style="padding:14px;display:none">
+        <div class="matrix-wrap" id="matrixWrap"></div>
+      </div>
+      <hr class="rule">
+      <div class="pcard" data-label="Performance" style="padding:14px">
+        <div class="stat-grid">
+          <div class="stat-tile"><span class="stat-lbl">Hands</span><div class="stat-val" id="sHands">0</div></div>
+          <div class="stat-tile"><span class="stat-lbl">Win Rate</span><div class="stat-val" id="sWin">—</div></div>
+          <div class="stat-tile"><span class="stat-lbl">Net P/L</span><div class="stat-val" id="sNet">$0</div></div>
+          <div class="stat-tile"><span class="stat-lbl">Best Streak</span><div class="stat-val" id="sStreak">0</div></div>
+        </div>
+      </div>
+      <div class="pcard" data-label="Hand History" style="padding:14px">
+        <div class="history" id="historyEl">
+          <div style="font-size:13px;font-style:italic;color:var(--text-secondary);text-align:center;padding:10px">No hands played yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="modal">
+  <div class="modal">
+    <div class="modal-title">About</div>
+    <p>An AI-powered Blackjack agent that analyses each hand in real-time and recommends optimal strategy via the Anthropic API.</p>
+    <p>Your API key is loaded in-memory from a <code>.env</code> file and is never stored or transmitted beyond the direct API call.</p>
+    <p>Structured JSON responses eliminate keyword-search ambiguity. Stretch features: explainability controls, risk profiles, performance analytics, and a live strategy matrix.</p>
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">Close</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let apiKey=null,balance=1000,currentBet=10;
+let deck=[],playerHand=[],dealerHand=[];
+let gamePhase='idle',currentRec=null;
+let explainLevel='basic',riskProfile='balanced';
+let stats={hands:0,wins:0,losses:0,pushes:0,net:0,streak:0,best:0,log:[]};
+
+const MODELS={
+  'claude-3-5':[{l:'Claude 3.5 Sonnet',v:'claude-3-5-sonnet-20241022'},{l:'Claude 3.5 Haiku',v:'claude-3-5-haiku-20241022'}],
+  'claude-3':[{l:'Claude 3 Opus',v:'claude-3-opus-20240229'},{l:'Claude 3 Sonnet',v:'claude-3-sonnet-20240229'},{l:'Claude 3 Haiku',v:'claude-3-haiku-20240307'}],
+  'claude-sonnet-4':[{l:'Claude Sonnet 4',v:'claude-sonnet-4-20250514'}]
+};
+
+function loadEnv(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const m=e.target.result.match(/ANTHROPIC_API_KEY\s*=\s*["']?([^\s"'\r\n]+)["']?/);
+    if(m){
+      apiKey=m[1].trim();
+      document.getElementById('keyStatus').textContent='Key loaded ✓';
+      document.getElementById('keyStatus').className='key-pill ok';
+      console.log('[Blackjack Agent] API key loaded in-memory from .env');
+      showToast('API key loaded');
+    } else { showToast('ANTHROPIC_API_KEY not found in .env'); }
+    input.value='';
+  };
+  r.readAsText(f);
+}
+
+function updateModels(){
+  const fam=document.getElementById('modelFamily').value;
+  const sel=document.getElementById('modelSel');
+  sel.innerHTML='<option value="">Select model</option>';
+  (MODELS[fam]||[]).forEach(m=>{
+    const o=document.createElement('option'); o.value=m.v; o.textContent=m.l; sel.appendChild(o);
+  });
+}
+function getModel(){return document.getElementById('modelSel').value||'claude-3-5-sonnet-20241022'}
+
+const RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUITS=['♠','♥','♦','♣'];
+const RED=new Set(['♥','♦']);
+function buildDeck(){
+  deck=[];
+  for(let d=0;d<6;d++) for(const s of SUITS) for(const r of RANKS) deck.push({r,s});
+  for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+  console.log('[Blackjack Agent] 6-deck shoe shuffled:',deck.length,'cards');
+}
+function draw(){if(deck.length<26)buildDeck();return deck.pop();}
+function val(c){return['J','Q','K'].includes(c.r)?10:c.r==='A'?11:+c.r;}
+function score(h){let s=0,a=0;for(const c of h){s+=val(c);if(c.r==='A')a++;}while(s>21&&a>0){s-=10;a--;}return s;}
+function isSoft(h){let s=0,a=0;for(const c of h){s+=val(c);if(c.r==='A')a++;}return a>0&&s<=21&&s-10>=1;}
+
+function makeCard(card,fd=false){
+  const el=document.createElement('div');
+  el.className=`card ${fd?'face-down':'face-up'}`;
+  if(!fd){
+    const cls=RED.has(card.s)?'sr':'sb';
+    el.innerHTML=`<div class="c-tl ${cls}">${card.r}<br>${card.s}</div><div class="c-mid ${cls}">${card.s}</div><div class="c-br ${cls}">${card.r}<br>${card.s}</div>`;
+  }
+  return el;
+}
+function renderHands(reveal=false){
+  const dc=document.getElementById('dealerCards'),pc=document.getElementById('playerCards');
+  dc.innerHTML='';pc.innerHTML='';
+  dealerHand.forEach((c,i)=>dc.appendChild(makeCard(c,!reveal&&i===1)));
+  playerHand.forEach(c=>pc.appendChild(makeCard(c)));
+  document.getElementById('dealerScore').textContent=reveal?`Score: ${score(dealerHand)}`:'Score: ?';
+  document.getElementById('playerScore').textContent=`Score: ${score(playerHand)}`;
+}
+
+function startHand(){
+  if(!apiKey){showToast('Please upload your .env file');return;}
+  if(!getModel()){showToast('Select a model');return;}
+  currentBet=Math.max(1,parseInt(document.getElementById('betInput').value)||10);
+  if(currentBet>balance){showToast('Wager exceeds balance');return;}
+  balance-=currentBet; updateBalance();
+  if(deck.length<52)buildDeck();
+  playerHand=[draw(),draw()]; dealerHand=[draw(),draw()];
+  gamePhase='player_turn'; currentRec=null;
+  document.getElementById('recVal').textContent='—';
+  document.getElementById('execBtn').disabled=true;
+  document.getElementById('betTag').textContent=`◈  $${currentBet}`;
+  renderHands(false); setActionBtns();
+  setStatus(`Your hand: ${score(playerHand)}. Dealer shows ${dealerHand[0].r}${dealerHand[0].s}.`);
+  console.log('[Blackjack Agent] Hand started — Player:',playerHand.map(c=>c.r+c.s).join(' '),'| Dealer up:',dealerHand[0].r+dealerHand[0].s);
+  if(score(playerHand)===21){setStatus('Blackjack! ✦','win');endHand('blackjack');return;}
+  consultAI();
+}
+function setActionBtns(){
+  const canDbl=playerHand.length===2&&balance>=currentBet;
+  const canSpl=playerHand.length===2&&playerHand[0].r===playerHand[1].r&&balance>=currentBet;
+  const canIns=dealerHand[0].r==='A'&&playerHand.length===2;
+  document.getElementById('actionArea').innerHTML=`
+    <button class="btn btn-hit" onclick="doHit()">Hit</button>
+    <button class="btn btn-stand" onclick="doStand()">Stand</button>
+    <button class="btn btn-dbl" onclick="doDbl()" ${canDbl?'':'disabled'}>Double</button>
+    <button class="btn btn-split" onclick="doSplit()" ${canSpl?'':'disabled'}>Split</button>
+    <button class="btn btn-ins" onclick="doIns()" ${canIns?'':'disabled'}>Insurance</button>`;
+}
+function showDealBtn(){document.getElementById('actionArea').innerHTML=`<button class="btn btn-play" onclick="startHand()">Deal</button>`;}
+
+function doHit(){
+  playerHand.push(draw());renderHands(false);
+  console.log('[Blackjack Agent] HIT —',playerHand.map(c=>c.r+c.s).join(' '),'| Score:',score(playerHand));
+  if(score(playerHand)>21){setStatus('Bust — over 21.','lose');endHand('lose');return;}
+  if(score(playerHand)===21){doStand();return;}
+  currentRec=null;document.getElementById('recVal').textContent='—';document.getElementById('execBtn').disabled=true;
+  consultAI();
+}
+function doStand(){console.log('[Blackjack Agent] STAND');gamePhase='dealer_turn';dealerPlay();}
+function doDbl(){
+  balance-=currentBet;currentBet*=2;updateBalance();
+  document.getElementById('betTag').textContent=`◈  $${currentBet}`;
+  playerHand.push(draw());renderHands(false);
+  console.log('[Blackjack Agent] DOUBLE DOWN —',playerHand.map(c=>c.r+c.s).join(' '),'| Score:',score(playerHand));
+  if(score(playerHand)>21){setStatus('Bust after double.','lose');endHand('lose');return;}
+  doStand();
+}
+function doSplit(){
+  showToast('Split — playing first hand');
+  playerHand.pop();playerHand.push(draw());renderHands(false);
+  console.log('[Blackjack Agent] SPLIT —',playerHand.map(c=>c.r+c.s).join(' '));
+  consultAI();
+}
+function doIns(){
+  const ins=Math.floor(currentBet/2);
+  if(score(dealerHand)===21){balance+=ins*2;updateBalance();showToast(`Insurance wins +$${ins*2}`);}
+  else{balance-=ins;updateBalance();showToast(`Insurance lost -$${ins}`);}
+  console.log('[Blackjack Agent] INSURANCE — dealer:',score(dealerHand));
+  consultAI();
+}
+function dealerPlay(){
+  renderHands(true);
+  const tick=()=>{
+    const ds=score(dealerHand);
+    if(ds<17||(ds===17&&isSoft(dealerHand))){
+      dealerHand.push(draw());renderHands(true);
+      console.log('[Blackjack Agent] Dealer HIT —',dealerHand.map(c=>c.r+c.s).join(' '),'| Score:',score(dealerHand));
+      setTimeout(tick,650);
+    } else resolveHand();
+  };
+  setTimeout(tick,750);
+}
+function resolveHand(){
+  const ps=score(playerHand),ds=score(dealerHand);
+  console.log(`[Blackjack Agent] RESOLVE — Player ${ps}, Dealer ${ds}`);
+  let res;
+  if(ps>21)res='lose';
+  else if(ds>21||ps>ds)res='win';
+  else if(ps<ds)res='lose';
+  else res='push';
+  endHand(res);
+}
+function endHand(res){
+  gamePhase='end';
+  let payout=0,msg='',cls='';
+  if(res==='blackjack'){payout=Math.floor(currentBet*2.5);msg=`Blackjack — you win $${payout-currentBet}.`;cls='win';}
+  else if(res==='win'){payout=currentBet*2;msg=`You win $${currentBet}.`;cls='win';}
+  else if(res==='push'){payout=currentBet;msg='Push — wager returned.';cls='push';}
+  else{payout=0;msg=`You lose $${currentBet}.`;cls='lose';}
+  balance+=payout;updateBalance();
+  setStatus(msg,cls);renderHands(true);showDealBtn();
+  document.getElementById('execBtn').disabled=true;
+  const net=payout-currentBet;
+  updateStats(res==='blackjack'?'win':res,net);
+  addHistory(playerHand,dealerHand,res==='blackjack'?'win':res,net);
+  console.log(`[Blackjack Agent] Payout: $${payout} | Balance: $${balance}`);
+}
+
+async function consultAI(){
+  if(!apiKey)return;
+  const model=getModel();if(!model)return;
+  const ps=score(playerHand),dUp=dealerHand[0];
+  const handStr=playerHand.map(c=>c.r+c.s).join(', ');
+  const soft=isSoft(playerHand);
+  const canDbl=playerHand.length===2&&balance>=0;
+  const canSpl=playerHand.length===2&&playerHand[0].r===playerHand[1].r;
+  const eMap={basic:'Give a brief 1-2 sentence recommendation.',statistical:'Include expected value, bust probability, and statistical reasoning.',deep:'Provide a thorough analysis: hand composition, soft/hard distinction, dealer bust probability, EV for each action, and long-term strategy rationale.'};
+  const rMap={conservative:'Player is risk-averse — prefer low-variance, bust-avoiding actions.',balanced:'Player uses standard basic strategy.',aggressive:'Player is aggressive — favour doubling and splitting to maximise EV.'};
+  const sys=`You are an expert Blackjack strategist. Respond ONLY with a valid JSON object — no preamble, no markdown fences.\n\nFormat: {"action":"hit"|"stand"|"double"|"split"|"insurance","confidence":0.0-1.0,"analysis":"string","reasoning":"string"}\n\n${rMap[riskProfile]}\n${eMap[explainLevel]}`;
+  const usr=`Player hand: ${handStr} (total: ${ps}, ${soft?'soft':'hard'})\nDealer up card: ${dUp.r}${dUp.s}\nDouble available: ${canDbl}\nSplit available: ${canSpl}\nCurrent bet: $${currentBet}\nRemaining balance: $${balance}\n\nRecommend the optimal action.`;
+  console.log('[Blackjack Agent] Calling LLM:',model);
+  console.log('[Blackjack Agent] Game state:',usr);
+  const loading=document.getElementById('aiLoading'),box=document.getElementById('aiBox');
+  loading.classList.add('show');box.textContent='';box.classList.remove('ph');
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model,max_tokens:600,system:sys,messages:[{role:'user',content:usr}]})
+    });
+    if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`HTTP ${res.status}`);}
+    const data=await res.json();
+    const raw=data.content.map(b=>b.text||'').join('').trim();
+    console.log('[Blackjack Agent] Raw LLM response:',raw);
+    let parsed;
+    try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}
+    catch{const m=raw.match(/\{[\s\S]*\}/);if(m)parsed=JSON.parse(m[0]);else throw new Error('Could not parse JSON');}
+    console.log('[Blackjack Agent] Parsed:',parsed);
+    currentRec=parsed.action;
+    const conf=Math.round((parsed.confidence||0.8)*100);
+    document.getElementById('recVal').textContent=parsed.action.toUpperCase();
+    document.getElementById('execBtn').disabled=gamePhase!=='player_turn';
+    box.textContent=`${parsed.analysis}\n\nConfidence: ${conf}%`;
+    document.getElementById('matrixPanel').style.display='block';
+    renderMatrix(ps,soft,dUp.r==='A'?11:isNaN(+dUp.r)?10:+dUp.r,parsed.action);
+  }catch(err){
+    console.error('[Blackjack Agent] Error:',err);
+    box.textContent=`Error: ${err.message}`;
+    showToast('AI error — see console');
+  }finally{loading.classList.remove('show');}
+}
+function executeRec(){
+  if(!currentRec||gamePhase!=='player_turn')return;
+  console.log('[Blackjack Agent] Executing:',currentRec);
+  ({hit:doHit,stand:doStand,double:doDbl,split:doSplit,insurance:doIns}[currentRec]||doStand)();
+}
+
+function renderMatrix(ps,soft,dv,action){
+  const s={8:['H','H','H','H','H','H','H','H','H','H'],9:['H','D','D','D','D','H','H','H','H','H'],
+    10:['D','D','D','D','D','D','D','D','H','H'],11:['D','D','D','D','D','D','D','D','D','H'],
+    12:['H','H','S','S','S','H','H','H','H','H'],13:['S','S','S','S','S','H','H','H','H','H'],
+    14:['S','S','S','S','S','H','H','H','H','H'],15:['S','S','S','S','S','H','H','H','H','H'],
+    16:['S','S','S','S','S','H','H','H','H','H'],17:['S','S','S','S','S','S','S','S','S','S'],
+    18:['S','S','S','S','S','S','S','S','S','S'],19:['S','S','S','S','S','S','S','S','S','S'],
+    20:['S','S','S','S','S','S','S','S','S','S'],21:['S','S','S','S','S','S','S','S','S','S']};
+  const hdrs=['2','3','4','5','6','7','8','9','10','A'];
+  const rows=Object.keys(s).sort((a,b)=>+a-+b);
+  const hlR=String(Math.min(Math.max(ps,8),21));
+  const hlC=hdrs.indexOf(dv===11?'A':dv===10?'10':String(dv));
+  let h=`<div style="font-size:8px;color:var(--text-secondary);letter-spacing:1px;margin-bottom:5px;font-family:'Cinzel',serif">PLAYER &nbsp;vs&nbsp; DEALER UP CARD</div>`;
+  h+=`<div class="m-row"><div class="m-cell m-lbl"></div>`;
+  hdrs.forEach(x=>h+=`<div class="m-cell m-lbl">${x}</div>`);
+  h+='</div>';
+  rows.forEach(r=>{
+    const isR=r===hlR;
+    h+=`<div class="m-row"><div class="m-cell m-lbl" style="color:${isR?'var(--gold)':'var(--text-secondary)'}">${r}</div>`;
+    s[r].forEach((a,ci)=>{const hl=isR&&ci===hlC;h+=`<div class="m-cell m-${a}${hl?' m-hl':''}">${a}</div>`;});
+    h+='</div>';
+  });
+  h+=`<div class="m-legend"><div class="m-leg"><div class="m-dot m-H"></div>Hit</div><div class="m-leg"><div class="m-dot m-S"></div>Stand</div><div class="m-leg"><div class="m-dot m-D"></div>Double</div></div>`;
+  document.getElementById('matrixWrap').innerHTML=h;
+}
+
+function updateStats(res,net){
+  stats.hands++;stats.net+=net;
+  if(res==='win'){stats.wins++;stats.streak=Math.max(0,stats.streak)+1;}
+  else if(res==='lose'){stats.losses++;stats.streak=Math.min(0,stats.streak)-1;}
+  else stats.pushes++;
+  stats.best=Math.max(stats.best,stats.streak);
+  const wr=stats.hands>0?Math.round(stats.wins/stats.hands*100):0;
+  document.getElementById('sHands').textContent=stats.hands;
+  document.getElementById('sWin').textContent=wr+'%';
+  const el=document.getElementById('sNet');
+  el.textContent=(stats.net>=0?'+':'')+'$'+stats.net;
+  el.className='stat-val'+(stats.net>0?' up':stats.net<0?' dn':'');
+  document.getElementById('sStreak').textContent=stats.best;
+}
+function addHistory(ph,dh,res,net){
+  stats.log.unshift({ph:ph.map(c=>c.r+c.s).join(' '),ps:score(ph),ds:score(dh),res,net});
+  if(stats.log.length>20)stats.log.pop();
+  document.getElementById('historyEl').innerHTML=stats.log.map(h=>`
+    <div class="h-row">
+      <span class="h-hand">${h.ph} (${h.ps}) vs ${h.ds}</span>
+      <span class="h-res ${h.res}">${h.res.toUpperCase()}</span>
+      <span class="h-amt" style="color:${h.net>0?'#7dcea0':h.net<0?'#cd8080':'var(--gold)'}">${h.net>=0?'+':''}$${h.net}</span>
+    </div>`).join('');
+}
+
+function setStatus(msg,cls=''){const el=document.getElementById('statusLine');el.textContent=msg;el.className='status-line '+cls;}
+function updateBalance(){document.getElementById('balDisplay').textContent='$'+balance.toLocaleString();}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function setTog(btn,type,val){
+  if(type==='explain')explainLevel=val;
+  else riskProfile=val;
+  btn.closest('.tog-row').querySelectorAll('.tog').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+buildDeck();
+console.log('[Blackjack Agent] Ready. Upload .env with ANTHROPIC_API_KEY to begin.');
+</script>
+</body>
+</html>
